@@ -335,6 +335,11 @@ their plugin clone. Downscale to 1600 px wide and quantize to 256
 colours before uploading; text stays crisp and each file drops to about
 a third.
 
+The social card that link previews show is neither: it is a repository
+setting uploaded through Settings > General, with no API to automate.
+`just social` builds one into `docs/media/social/`, outside the glob the
+release upload uses. See `docs/media/README.md`.
+
 ## Testing
 
 The suite that runs anywhere:

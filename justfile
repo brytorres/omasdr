@@ -88,6 +88,13 @@ shot SRC NAME:
     magick {{SRC}} -resize 1600x -strip -colors 256 -depth 8 docs/media/{{NAME}}.png
     @ls -lh docs/media/{{NAME}}.png
 
+# Build the GitHub social card, uploaded by hand at Settings > General.
+[group('media')]
+social SRC GRAVITY="center":
+    @mkdir -p docs/media/social
+    magick {{SRC}} -resize '1280x640^' -gravity {{GRAVITY}} -extent 1280x640 -strip -colors 256 -depth 8 docs/media/social/card.png
+    @ls -lh docs/media/social/card.png
+
 # Show what is waiting in docs/media for the next upload.
 [group('media')]
 media:

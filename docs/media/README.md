@@ -24,3 +24,24 @@ just shot ~/Pictures/<capture>.png <name>
 
 Publish with `just publish-media` (or `gh release upload v0.1.0 --clobber
 docs/media/*.png`) and keep the README URLs pointing at that tag.
+
+## The social card
+
+The picture X, Slack, and Discord show when someone links the repository is
+not a file here and not a release asset: it is a repository setting, uploaded
+by hand at Settings > General > Social preview. There is no REST API and no
+`gh` command for it, so it is a one-time click in a browser per change. Left
+unset, GitHub generates a card from the repository name, description, and
+owner avatar.
+
+Build one from a capture, 1280x640 and well under the 1 MB limit:
+
+```sh
+just social ~/Pictures/<capture>.png          # centre crop
+just social ~/Pictures/<capture>.png north    # keep the readout, drop the settings row
+```
+
+It lands in `docs/media/social/card.png`, outside the `docs/media/*.png` glob
+`just media` and `just publish-media` use, so it never rides along into a
+release. Those platforms cache cards hard; a replacement can take a day, or a
+re-share through the platform's own link debugger, to appear.

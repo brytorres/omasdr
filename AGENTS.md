@@ -16,15 +16,22 @@ asking the maintainer. Add new decisions here as they are made, with the date.
 - Shipped so far: device detection, frequency entry with a kHz/MHz toggle,
   scroll-to-step tuning, eight demodulators, presets with a repeatable gqrx
   import, recording, a signal meter, and a spectrum plot with waterfall.
-- Still ahead, roughly in order: manual or frozen dB range for the spectrum;
-  multi-device selection (`list_devices` in the window, a picker calling
-  `set_device`, selection by serial); per-demod filter widths and squelch
-  defaults; AGC mode, DC offset, and I/Q balance controls (gr-iqbal is
-  installed); preset tags and filtering in the popover; **keyboard shortcuts**, meaning
-  both a Hyprland binding that summons the popover (with an example for
-  `~/.config/hypr/bindings.lua` in the README) and keys inside it for play,
-  stop, step, record, and jumping to a preset, listed somewhere discoverable;
-  and other gr-osmosdr backends once someone can test one.
+- Still ahead, roughly in order:
+  - Manual or frozen dB range for the spectrum, if auto-range annoys in use.
+  - **RDS on FM**: the station name and song text a car radio shows. See the
+    section below for where it taps in and what decodes it.
+  - Multi-device selection: `list_devices` in the window, a picker calling
+    `set_device`, and selection by serial.
+  - Per-demod filter widths and squelch defaults.
+  - AGC mode, DC offset, and I/Q balance controls (`gnuradio-iqbal` is
+    already installed).
+  - Preset tags and filtering in the popover.
+  - **Keyboard shortcuts**, meaning both a Hyprland binding that summons the
+    popover (with an example for `~/.config/hypr/bindings.lua` in the README)
+    and keys inside it for play, stop, step, record, and jumping to a preset,
+    listed somewhere discoverable.
+  - Other gr-osmosdr backends, once someone can test one.
+
   Design the daemon protocol so these stay additive rather than breaking.
 
 ## Architecture decisions (2026-09-08)
@@ -205,6 +212,48 @@ bash script that takes a machine from nothing to a verified dongle.
   group; suggest the group only for headless or SSH use.
 - README notes that `dpdk` (about 280 MiB) arrives through `libuhd`, which
   `gnuradio` depends on, so a large install is expected and not a mistake.
+
+## RDS and HD Radio (researched 2026-09-08, not built)
+
+**RDS** (RBDS in North America) is the data a car radio displays: an FM
+station adds a subcarrier at 57 kHz, three times the 19 kHz stereo pilot,
+carrying 1187.5 bits a second in error-checked 104-bit groups. The fields
+worth surfacing are `PS` (the 8-character station name), `RadioText` (64
+free-form characters, usually artist and title), `RT+` (tags marking which
+part of RadioText is the artist and which is the title, which is how newer
+car displays split them cleanly), `PI` (a station code that maps to call
+letters here), and `PTY` (program type).
+
+**Where it taps in.** The data is already flowing through the daemon and
+being thrown away. The WFM path decimates 2.4 MS/s to a 240 kHz channel,
+which comfortably contains the 57 kHz subcarrier; it is the demodulator's
+decimation to 48 kHz audio that discards it. So this is a tap on the
+discriminator output at the channel rate, not a restructuring. Anything
+below roughly 120 kHz cannot carry the subcarrier at all.
+
+**What decodes it.** `redsea` (AUR, 1.3.1) is a small standalone binary that
+reads demodulated MPX on stdin and prints one JSON object per group; the
+documented pipeline is `rtl_fm -M fm -s 171k ... | redsea -r 171k`. That is
+the pragmatic route. `gr-rds` would sit in the flowgraph directly but is not
+packaged for Arch and needs a source build against GNU Radio 3.10. SDRangel
+is in the repos and has RDS built in, which makes it a good reference to
+check results against.
+
+**Expect it to be unreliable on weak signals.** A local station locks in a
+second or two; a marginal one produces garbled text or never synchronises.
+Surface it as "no data yet" rather than blank, and never let it block audio.
+
+**Fit.** Station name belongs in the popover header beside the frequency,
+song text on a line beneath it. On the wire it is additive: either new
+optional fields on `state`, or a separate message type, so an older client
+keeps working.
+
+**HD Radio (NRSC-5) is the other option**, and a bigger one. Many US
+stations broadcast digital sidebands carrying station name, artist, title,
+and album art, far more reliably than RDS. `nrsc5-git` is in the AUR and
+works with an RTL-SDR, but it wants about 1.5 MS/s, noticeably more CPU, and
+a stronger signal than analogue FM needs. Treat it as a separate feature
+from RDS, not a replacement.
 
 ## Repository layout
 

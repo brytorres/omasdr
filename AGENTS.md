@@ -335,23 +335,6 @@ their plugin clone. Downscale to 1600 px wide and quantize to 256
 colours before uploading; text stays crisp and each file drops to about
 a third.
 
-## Device notes (maintainer-local, not in the clone)
-
-The source material for the README Devices section lives outside this repo
-at `~/Projects/3_dev/60_devices/<name>/` on the maintainer's machine. For the
-RTL-SDR Blog V4 that is `~/Projects/3_dev/60_devices/rtl-sdr/`:
-
-- `README.md`: verified setup on Omarchy aarch64 (Asahi), the USB hub that
-  does not pass the dongle through, blacklist and udev details, gqrx
-  settings, HF behaviour of the V4 (built-in upconverter; never enable
-  direct sampling or set an LNB LO).
-- `frequencies.md`: monitoring targets and per-mode band notes. Use it as
-  the seed for default presets and the demod-to-step table.
-- `init.conf`: the gqrx config that works with this dongle.
-
-Read those before touching device detection, presets, or the README Devices
-section. Summarise into the README; do not copy the files into the repo.
-
 ## Testing
 
 The suite that runs anywhere:

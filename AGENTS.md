@@ -358,12 +358,17 @@ demodulators build and run on the V4 at 2.4 and 2.048 MS/s, the bar popover
 and expanded window work in the live shell, audio and stereo are confirmed by
 ear, and the spectrum and waterfall have been compared against gqrx.
 
-Two checks remain open:
+Open checks:
 
-- [ ] **`scripts/setup.sh` on a clean machine or container.** It has only
-      ever run on a system that already had every package. Paste its output
-      into a PR. This is the last thing standing between the current state
-      and a `v0.1.0` tag.
+- [x] **`scripts/setup.sh` on a clean machine or container.** Done
+      2026-09-08 in an `archlinux` aarch64 container holding none of the
+      packages: all four required packages installed, the DVB blacklist and
+      the udev rules landed, and gnuradio 3.10.12.0 and osmosdr imported
+      under `/usr/bin/python3`. The device steps are not reachable that way,
+      since a container enumerates the dongle through sysfs but cannot claim
+      it without USB passthrough, so `rtl_test -t` still rests on the
+      maintainer's hardware. The run also turned up an unbound `$USER` under
+      `set -u`, fixed the same day.
 - [ ] **Whether the spectrum needs a manual dB range or a "freeze range"
       toggle.** Auto-range follows the noise floor and the peaks, which is
       right on a busy band and may drift annoyingly on a quiet one. Decide

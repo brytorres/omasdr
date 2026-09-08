@@ -260,6 +260,7 @@ from RDS, not a replacement.
 ```
 OmaSDR/
 ├── manifest.json          plugin manifest (id com.omasdr.radio, version, kinds)
+├── justfile               dev and release shortcuts; `just` lists them
 ├── README.md              the user-facing document
 ├── CONTRIBUTING.md        local development setup
 ├── AGENTS.md              this file: settled decisions
@@ -268,7 +269,8 @@ OmaSDR/
 ├── daemon/
 │   └── omasdrd.py         flowgraph, both sockets, presets, CLI. System python3
 ├── docs/
-│   └── protocol.md        the daemon ↔ UI contract
+│   ├── protocol.md        the daemon ↔ UI contract
+│   └── media/README.md    how to recapture and publish README shots
 ├── scripts/
 │   ├── setup.sh           dependency install and device verification
 │   ├── check.sh           protocol walk against a scratch daemon
@@ -319,6 +321,20 @@ has just plugged in a dongle, not for a contributor. Keep it in this shape:
 Facts about a device belong in the README itself, summarised from the
 maintainer's notes below; a user cannot see those notes.
 
+**README media ships as release assets, never in the tree (2026-09-08).**
+`omarchy plugin add` clones the whole default branch onto every user's
+disk, so screenshots would cost every install and every update forever;
+three shots weigh more than three times the entire repository history.
+They live in `docs/media/`, which is ignored except for its README, and
+are uploaded to the GitHub Release for the matching tag with
+`gh release upload v<version> --clobber docs/media/*.png`. The README
+links them by absolute URL pinned to that tag. This follows omastorm,
+which does the same thing for the same reason. The tradeoff, accepted:
+the images do not render for someone reading the README offline inside
+their plugin clone. Downscale to 1600 px wide and quantize to 256
+colours before uploading; text stays crisp and each file drops to about
+a third.
+
 ## Device notes (maintainer-local, not in the clone)
 
 The source material for the README Devices section lives outside this repo
@@ -344,6 +360,9 @@ The suite that runs anywhere:
 bash scripts/check.sh          # protocol walk against a scratch daemon
 omarchy plugin validate .      # the manifest check the shell applies
 ```
+
+`just test` runs both. The scripts stay the source of truth; the justfile
+is shortcuts over them, never a second implementation.
 
 `check.sh` covers tuning, stepping, demod switching, presets, and refusals
 with no hardware. With a free dongle it also plays, reads the tuner's gain
@@ -373,7 +392,14 @@ Two checks remain open:
   branch into `~/.config/omarchy/plugins/com.omasdr.radio`, and
   `omarchy plugin update` fast-forwards it.
 - `manifest.json` `version` is the plugin version; tag the same commit
-  `v<version>`. Run the checks under Testing before tagging.
+  `v<version>`. Run the checks under Testing before tagging. The README's
+  version badge, its Status section, and the release URLs its screenshots
+  point at repeat that number for display only; `just bump <version>`
+  rewrites all of them together and refuses if any is missing. The badges
+  are static because the repository is not reachable publicly yet; once it
+  is, the version badge can read the manifest directly with shields.io's
+  `dynamic/json` endpoint against the raw `manifest.json` and stop needing
+  a manual bump.
 - Symlinks anywhere in the plugin folder make the validator reject it, which
   is why development copies rather than links (`scripts/dev-sync.sh`).
 

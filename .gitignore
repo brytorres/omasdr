@@ -7,6 +7,11 @@ __pycache__/
 *.jsc
 *.qmlls.ini
 
+# README media: the plugin is a full clone of this repo, so screenshots
+# ship as GitHub Release assets instead. See docs/media/README.md.
+docs/media/*
+!docs/media/README.md
+
 # Local working notes and editor state
 PLAN.md
 NOTES.md

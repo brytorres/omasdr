@@ -77,7 +77,7 @@ else
   bad "udev rules missing; reinstall rtl-sdr"
 fi
 if [[ -z ${XDG_SESSION_TYPE:-} || ${XDG_SESSION_TYPE:-} == tty ]] && ! id -nG | grep -qw rtlsdr; then
-  note "no graphical seat detected: for SSH or headless use add yourself to the rtlsdr group (sudo usermod -aG rtlsdr $USER)"
+  note "no graphical seat detected: for SSH or headless use add yourself to the rtlsdr group (sudo usermod -aG rtlsdr ${USER:-$(id -un)})"
 fi
 
 step "Device"

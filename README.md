@@ -1,6 +1,6 @@
 # OmaSDR
 
-[![version 0.1.0](https://img.shields.io/badge/version-0.1.0-0f766e?style=flat-square)](https://github.com/brytorres/omasdr/releases)
+[![version 0.2.0](https://img.shields.io/badge/version-0.2.0-0f766e?style=flat-square)](https://github.com/brytorres/omasdr/releases)
 [![status: beta](https://img.shields.io/badge/status-beta-f59e0b?style=flat-square)](#status)
 [![license: MIT](https://img.shields.io/badge/license-MIT-64748b?style=flat-square)](LICENSE)
 [![Omarchy plugin](https://img.shields.io/badge/Omarchy-plugin-1793d1?style=flat-square&logo=archlinux&logoColor=white)](https://omarchy.org)
@@ -21,7 +21,7 @@ If something you want is missing, [open an
 issue](https://github.com/brytorres/omasdr/issues) and say what you were
 trying to do. That is the right response to a gap, not a surprise.
 
-![The OmaSDR window: spectrum and waterfall across the FM broadcast band, tuned to 104.1 MHz in WFM stereo](https://github.com/brytorres/omasdr/releases/download/v0.1.0/window.png)
+![The OmaSDR window: spectrum and waterfall across the FM broadcast band, tuned to 104.1 MHz in WFM stereo](https://github.com/brytorres/omasdr/releases/download/v0.2.0/window.png)
 
 ## What you get
 
@@ -38,17 +38,17 @@ trying to do. That is the right response to a gap, not a surprise.
 
 Everything follows your Omarchy theme, waterfall colours included.
 
-![The tuner popover in the bar, on NOAA weather radio at 162.55 MHz in NFM](https://github.com/brytorres/omasdr/releases/download/v0.1.0/popover.png)
+![The tuner popover in the bar, on NOAA weather radio at 162.55 MHz in NFM](https://github.com/brytorres/omasdr/releases/download/v0.2.0/popover.png)
 
 *The popover: everything you need without a window open.*
 
-![The OmaSDR window tiled beside the omastorm radar window, both on the same Omarchy theme](https://github.com/brytorres/omasdr/releases/download/v0.1.0/desktop.png)
+![The OmaSDR window tiled beside the omastorm radar window, both on the same Omarchy theme](https://github.com/brytorres/omasdr/releases/download/v0.2.0/desktop.png)
 
 *Beside [omastorm](https://github.com/wesleygrimes/omastorm), on the same theme.*
 
 ## Status
 
-Beta, at `v0.1.0`. Everything listed above is in use daily on the
+Beta, at `v0.2.0`. Everything listed above is in use daily on the
 maintainer's machine, but that is one dongle on one distribution, and the
 setup script has never run on a system that was missing packages. Expect
 rough edges, and please report them. The daemon protocol is settled and

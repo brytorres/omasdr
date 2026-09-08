@@ -107,12 +107,46 @@ printf '{"type":"set_frequency","frequency":101100000}\n' |
 The full contract is [docs/protocol.md](docs/protocol.md). Any change to the
 daemon's messages updates that file in the same commit.
 
+## Branches and commits
+
+**`main` is what users install.** `omarchy plugin add` clones the default
+branch onto their disk and `omarchy plugin update` fast-forwards it, so
+there is no staging between a merge and a stranger's bar widget. Keep `main`
+installable at every commit: it is protected against force-pushes and
+deletion, and changes arrive through a pull request.
+
+Work on a branch, open a PR, and it lands as a single squashed commit whose
+subject is the PR title.
+
+Commit subjects are [conventional commits](https://www.conventionalcommits.org),
+`type: summary` in the imperative:
+
+```
+feat: add RDS station name to the popover
+fix: keep the daemon alive while recording
+docs: explain the dpdk download size
+chore: bump the manifest to 0.2.0
+```
+
+`feat`, `fix`, `docs`, `refactor`, `perf`, `test`, and `chore` cover
+everything here. Because the PR title becomes the commit subject, write the
+title that way too.
+
+Two rules from AGENTS.md that a PR is checked against:
+
+- A change to the daemon's messages updates `docs/protocol.md` in the same
+  commit.
+- Something newly settled gets a dated decision in AGENTS.md, and a closed
+  question ticks its item under Testing.
+
 ## Check before you commit
 
 ```sh
 bash scripts/check.sh          # protocol walk against a scratch daemon
 omarchy plugin validate .      # the manifest check the shell applies
 ```
+
+`just test` runs both; `just` on its own lists every other shortcut.
 
 `check.sh` covers tuning, stepping, demod switching, presets, and refusal
 cases with no hardware. With a free dongle it also plays, reads the tuner's

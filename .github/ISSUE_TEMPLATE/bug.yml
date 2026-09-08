@@ -1,0 +1,70 @@
+name: Something is broken or missing
+description: A bug, or a gap where you expected OmaSDR to do something.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        OmaSDR deliberately does not do everything gqrx does, so a gap is not
+        always a bug — but it is always worth reporting. Say what you were
+        trying to do and it gets triaged from there.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where?
+      options:
+        - The bar widget
+        - The tuner popover
+        - The expanded window
+        - The spectrum or waterfall
+        - Recording
+        - Presets or the gqrx import
+        - The daemon
+        - The setup script
+        - Somewhere else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+      placeholder: |
+        1. Tuned to 162.55 MHz in NFM
+        2. Pressed PLAY
+        3. Expected audio; the meter moved but nothing came out
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: OmaSDR version
+      description: The `version` in `manifest.json`, or the line at the bottom of the expanded window.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: check
+    attributes:
+      label: Output of the check script
+      description: "`bash scripts/setup.sh --check`. It prints a pass/fail table of every assumption OmaSDR makes, and usually contains the answer."
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >
+        Daemon: `tail -50 "$XDG_RUNTIME_DIR/omasdr/daemon.log"`.
+        For a blank or misbehaving widget, the QML error is in the shell log:
+        `journalctl --user -u omarchy-shell -n 50`.
+      render: shell
+    validations:
+      required: false

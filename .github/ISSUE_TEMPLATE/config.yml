@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Design decisions and roadmap
+    url: https://github.com/brytorres/omasdr/blob/main/AGENTS.md
+    about: Why things are the way they are, and what is already planned.
+  - name: Development setup
+    url: https://github.com/brytorres/omasdr/blob/main/CONTRIBUTING.md
+    about: Running OmaSDR from a checkout, and the conventions a PR follows.

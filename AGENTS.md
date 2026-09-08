@@ -415,6 +415,10 @@ before the first public release rather than after.
 - Never edit anything under `/usr/share/omarchy/`. Read it freely for
   reference; `omarchy plugin clone` is the way to copy a built-in widget.
 - Frequency is always integer hertz in code, config, protocol, and presets.
+- Commit subjects are conventional commits, `type: summary`. Changes reach
+  `main` through a pull request and land squashed under the PR title;
+  `main` is protected, and it is what `omarchy plugin add` installs, so it
+  stays installable at every commit.
 - Any change to the socket protocol updates `docs/protocol.md` in the same
   commit.
 - A new device the daemon has been tested with gets notes under

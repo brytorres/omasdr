@@ -1,0 +1,66 @@
+name: Hardware report
+description: You tried a dongle. Say how it went, whether or not it worked.
+title: "hardware: "
+labels: ["hardware"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        OmaSDR has only been tested on one dongle, the RTL-SDR Blog V4. Every
+        report here is how that list grows, so a report that it *worked* is as
+        useful as one that it did not.
+
+        See [Hardware](https://github.com/brytorres/omasdr#hardware) for what
+        is currently expected to work.
+
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: How did it go?
+      options:
+        - It worked
+        - It was detected, but would not play
+        - It was not detected at all
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: dongle
+    attributes:
+      label: Which dongle?
+      description: Model name, and the seller if it is a generic stick.
+      placeholder: RTL-SDR Blog V3
+    validations:
+      required: true
+
+  - type: input
+    id: usbid
+    attributes:
+      label: USB id
+      description: >
+        From `lsusb`, the pair after `ID`. OmaSDR currently matches only
+        `0bda:2838` and `0bda:2832`, so this is the field that decides whether
+        detection can find it.
+      placeholder: "0bda:2838"
+    validations:
+      required: true
+
+  - type: textarea
+    id: check
+    attributes:
+      label: Output of the check script
+      description: "`bash scripts/setup.sh --check` — or, if installed as a plugin, `bash ~/.config/omarchy/plugins/com.omasdr.radio/scripts/setup.sh --check`"
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: >
+        Which bands and demodulators you tried, whether HF worked, how it
+        compared to gqrx if you have it. Frequencies help.
+    validations:
+      required: false

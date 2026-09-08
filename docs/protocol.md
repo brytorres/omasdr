@@ -1,0 +1,202 @@
+# Daemon protocol
+
+The daemon (`daemon/omasdrd.py`) listens on a Unix socket at
+`$XDG_RUNTIME_DIR/omasdr/control.sock`. Every message is one JSON object on
+one line, terminated by `\n`. Every message from the daemon carries
+`"v": 1`; a client that sees another value must stop and report an
+incompatible daemon rather than guess.
+
+Frequencies are integer hertz everywhere. Only the UI converts to kHz or MHz.
+
+Any change to this contract lands in the same commit as the daemon change.
+
+## Connection
+
+On connect the daemon sends, in order:
+
+1. `hello` with the demod catalogue and the preset list.
+2. `state`, the full receiver state.
+
+After that the client sends commands. Each command gets exactly one reply.
+The daemon also broadcasts `state` and `presets` to every client whenever
+either changes, so a client must accept those at any time, not only as a
+reply.
+
+## Control socket: messages from the daemon
+
+### hello
+
+```json
+{"v": 1, "type": "hello", "version": "0.1.0", "socket": "/run/user/1000/omasdr/control.sock",
+ "fft_socket": "/run/user/1000/omasdr/fft.sock", "bandplan": [...],
+ "demods": [{"id": "wfm", "label": "WFM", "step": 100000, "bw": 200000, "audio_rate": 48000}, ...],
+ "presets": [{"name": "KEXP", "frequency": 90300000, "demod": "wfm", "tags": ["FM"]}, ...]}
+```
+
+`demods` is ordered the way the UI should list it. `step` is the default
+scroll-to-step for that demod in hertz.
+
+### state
+
+```json
+{"v": 1, "type": "state", "version": "0.1.0",
+ "playing": true,
+ "frequency": 104100000,
+ "demod": "wfm",
+ "step": 100000,
+ "gain": "auto",
+ "gain_range": [0.0, 0.9, 1.4, ...],
+ "ppm": 0,
+ "sample_rate": 2400000,
+ "squelch": -150.0,
+ "volume": 0.5,
+ "keep_running": false,
+ "recording": "",
+ "recording_started": 0,
+ "record_dir": "/home/you/Audio/OmaSDR",
+ "device": {"status": "ours", "name": "RTLSDRBlog Blog V4", "serial": "00000001", "args": "rtl=0", "held_by": ""},
+ "error": ""}
+```
+
+- `step` is the effective step: the demod default unless `set_step` overrode it.
+- `gain` is `"auto"` or a number in dB. `gain_range` is the tuner's stepped
+  list; it is empty until the device has been opened once. The default is a
+  fixed 25.4 dB: the R82x tuner's own AGC pumps and overloads on strong
+  stations.
+- `frequency` is the wanted channel. The daemon tunes the hardware 300 kHz
+  above it and shifts back digitally (offset tuning), so the dongle's DC
+  spike never sits in the passband. Clients never see the offset.
+- `device.status` is one of `free`, `ours`, `busy`, `missing`. `held_by` is
+  the process name when `busy` (for example `gqrx`).
+- `recording` is the WAV path being written, or empty; `recording_started`
+  is its Unix start time. Recording stops with playback.
+- `error` is the last receiver failure in one line, or empty. It is cleared
+  by the next successful `play`.
+
+### presets
+
+```json
+{"v": 1, "type": "presets", "presets": [...]}
+```
+
+Sent to every client after any preset change. Sorted by frequency.
+
+### devices
+
+Reply to `list_devices`.
+
+```json
+{"v": 1, "type": "devices", "devices": [{"index": 0, "name": "...", "serial": "...", "args": "rtl=0", "usb_path": "/dev/bus/usb/001/002", "status": "free", "held_by": ""}]}
+```
+
+### imported
+
+Reply to `import_gqrx`, after the `presets` broadcast.
+
+```json
+{"v": 1, "type": "imported", "added": 12, "skipped": 3}
+```
+
+### error
+
+Reply when a command was refused. Only the sender hears it.
+
+```json
+{"v": 1, "type": "error", "message": "Unknown demod: 'ssb'"}
+```
+
+### bye
+
+Reply to `quit`, then the daemon exits.
+
+## Control socket: commands from the client
+
+| type | fields | reply | notes |
+|---|---|---|---|
+| `get_state` | | `state` | re-checks the device |
+| `play` | | `state` | opens the device and starts audio; `state.error` says why not |
+| `stop` | | `state` | stops the flowgraph, releases the device |
+| `set_frequency` | `frequency` (Hz) | `state` | live retune |
+| `step` | `delta` (±1, ±10, …) | `state` | moves by `state.step × delta` |
+| `set_demod` | `demod` (id) | `state` | restarts the receiver if playing; resets any step override |
+| `set_step` | `step` (Hz, 0 = follow demod) | `state` | manual override |
+| `set_gain` | `gain` (`"auto"` or dB) | `state` | live |
+| `set_ppm` | `ppm` (int) | `state` | live |
+| `set_sample_rate` | `sample_rate` (S/s) | `state` | restarts the receiver if playing |
+| `set_squelch` | `squelch` (dB) | `state` | live; -150 is open |
+| `set_volume` | `volume` (0..1) | `state` | live |
+| `set_keep_running` | `enabled` (bool) | `state` | off: daemon exits after 10 idle minutes |
+| `record` | `enabled` (bool) | `state` or `error` | writes `<record_dir>/<stamp>-<MHz>-<demod>.wav`, stereo 16-bit 48 kHz; needs playback |
+| `set_record_dir` | `record_dir` (path) | `state` | `~` is expanded |
+| `set_device` | `device` (osmosdr args or serial, `""` = first) | `state` | restarts the receiver if playing |
+| `list_devices` | | `devices` | |
+| `save_preset` | `name`, `frequency`, `demod`, `tags` | `presets` | replaces a preset at the same frequency |
+| `delete_preset` | `frequency` | `presets` | |
+| `import_gqrx` | | `imported` | never overwrites an existing frequency |
+| `quit` | | `bye` | |
+
+## FFT socket
+
+`$XDG_RUNTIME_DIR/omasdr/fft.sock` (also under `OMASDR_RUNTIME_DIR`) streams
+spectrum frames, one JSON line each, only while the receiver is playing.
+Control traffic stays on `control.sock` so it never waits behind frames.
+Clients send nothing; connect to subscribe, close to stop.
+
+On connect:
+
+```json
+{"v": 1, "type": "fft_hello", "n": 1024, "fps": 15, "db_min": -128.0, "db_step": 0.5}
+```
+
+Then per frame:
+
+```json
+{"v": 1, "type": "fft", "seq": 812, "center": 104400000, "rate": 2400000, "freq": 104100000, "bw": 200000, "n": 1024, "bins": [131, 129, ...]}
+```
+
+- `bins` is `n` integers 0..255, DC in the middle, spanning `center ± rate/2`.
+  dB for a value `b` is `b * db_step + db_min`. Plain integers rather than
+  base64 because Qt's `atob` is deprecated and not byte-exact; a frame is
+  about 4 KB, which is nothing on a Unix socket.
+- `center` is the hardware centre, which sits `offset` above `freq` (see
+  offset tuning); `freq` and `bw` locate the tuned channel in the frame.
+- Frames are log-power with exponential averaging (alpha 0.5) at 15 a
+  second. A slow client just sees fewer frames; nothing is queued.
+
+## Level messages
+
+While playing, the control socket also carries the signal level in the
+tuned channel to every client, a few times a second and only when it
+changes:
+
+```json
+{"v": 1, "type": "level", "db": -47.3}
+```
+
+## Bandplan
+
+`hello` carries `bandplan`: gqrx's `~/.config/gqrx/bandplan.csv` as rows of
+`{start, stop, mode, step, color, name}` (frequencies in Hz, colour as
+written in the file, usually `#AARRGGBB`). Empty when the file is missing.
+
+## Files
+
+| Path | Owner | Content |
+|---|---|---|
+| `~/.config/omasdr/settings.json` | daemon | last receiver settings; loaded on start |
+| `~/.config/omasdr/presets.json` | daemon | the preset list |
+| `~/.config/omasdr/ui.json` | plugin | UI preferences the daemon never reads (`unit`) |
+| `$XDG_RUNTIME_DIR/omasdr/control.sock` | daemon | the control socket (`OMASDR_RUNTIME_DIR` overrides the directory, for checks) |
+| `$XDG_RUNTIME_DIR/omasdr/fft.sock` | daemon | the spectrum socket |
+| `$XDG_RUNTIME_DIR/omasdr/daemon.pid` | daemon | pid of the running daemon |
+| `$XDG_RUNTIME_DIR/omasdr/daemon.log` | daemon | stderr of a daemon started with `ensure` |
+
+## Lifecycle
+
+`omasdrd.py ensure` starts a daemon in the background if none is running and
+returns at once. The plugin calls it when a popover or window opens, when
+play is pressed while offline, and every 15 s while such a surface is open
+and the daemon is unreachable. The bar icon alone never starts it. With
+`keep_running` off the daemon exits after 10 minutes without playback or a
+command; a connected but silent client does not keep it alive. `omasdrd.py stop` asks it to exit; `status` and
+`devices` are diagnostics.

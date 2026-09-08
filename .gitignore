@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# Qt/QML caches
+*.qmlc
+*.jsc
+*.qmlls.ini
+
+# Local working notes and editor state
+PLAN.md
+NOTES.md
+.venv/
+.agents/
+.codex/
+.idea/
+.vscode/

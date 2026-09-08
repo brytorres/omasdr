@@ -271,8 +271,15 @@ OmaSDR/
 ├── docs/
 │   ├── protocol.md        the daemon ↔ UI contract
 │   └── media/README.md    how to recapture and publish README shots
+├── share/                 what setup.sh copies into $XDG_DATA_HOME
+│   ├── applications/
+│   │   └── omasdr.desktop the app-selector entry
+│   └── icons/hicolor/scalable/apps/
+│       └── omasdr.svg     the antenna mark as an app icon
 ├── scripts/
 │   ├── setup.sh           dependency install and device verification
+│   ├── omasdr-theme-icon.sh  paints the app icon in the theme's ink; also
+│   │                      installed as a theme-set hook
 │   ├── check.sh           protocol walk against a scratch daemon
 │   ├── dev-sync.sh        copy the checkout into the live shell
 │   └── run.sh             open the window without the shell
@@ -395,6 +402,49 @@ Open checks:
   a manual bump.
 - Symlinks anywhere in the plugin folder make the validator reject it, which
   is why development copies rather than links (`scripts/dev-sync.sh`).
+
+**The app selector entry is an XDG file setup.sh copies (2026-09-08).**
+The Omarchy menu's Apps list is fed by `DesktopEntries.applications`
+(`/usr/share/omarchy/shell/services/AppLibrary.qml`), so appearing there
+means shipping a `.desktop` file, not registering with anything Omarchy
+owns. It lives at `share/applications/omasdr.desktop` and `setup.sh`
+copies it to `$XDG_DATA_HOME/applications`. Its `Exec` is the same IPC
+the bar widget's EXPAND button sends,
+`omarchy shell shell toggle com.omasdr.radio {}`, because there is no
+standalone binary to launch; the consequence, accepted, is that the entry
+does nothing when the Omarchy shell is not running. `setup.sh` never
+overwrites an entry that differs from the shipped copy, so a user's own
+edits survive an update.
+
+The icon is our own mark, not a stock freedesktop name:
+`share/icons/hicolor/scalable/apps/omasdr.svg` redraws the whip and two
+arcs of `ui/AntennaMark.qml` as SVG, with heavier strokes (2.2 and 1.9
+against the QML's 1.6 and 1.3) because the bar glyph's weight disappears
+at app-icon sizes, and with the base lifted off `y=15` so the thicker
+round caps stay inside the 16-unit box. The two files are kept in step by
+hand; the QML draws on a Canvas at runtime and cannot share a source with
+a static file.
+
+**The app icon follows the theme through a hook (2026-09-08).** A flat
+white icon reads on every dark theme and vanishes on the light ones
+(`catppuccin-latte`, `flexoki-light`, `white`), and a `.desktop` icon is
+a file, so it cannot follow a palette on its own. The shipped SVG is
+therefore a template in which every colour is `#ffffff`, and
+`scripts/omasdr-theme-icon.sh` substitutes the active theme's ink into
+the copy under `$XDG_DATA_HOME`. `setup.sh` runs it at install time and
+installs it into `~/.config/omarchy/hooks/theme-set.d/`, so a theme
+switch repaints it; the shell's `AppLibrary` rescans
+`~/.local/share/icons` when the menu opens, so the new colour appears
+without restarting anything. The ink is `[menu] text` from the theme's
+`shell.toml`, the colour the menu draws its own rows in, falling back to
+`[popups] text`, then `colors.toml` `foreground`, then white. The script
+reads `~/.local/state/omarchy/current/theme` rather than the slug the
+hook is passed in `$1`, because that is the path `ui/Theme.qml` watches
+and the icon must not disagree with the running UI. Consequences,
+accepted: the installed icon is generated, so edits to it are
+overwritten, and unlike the `.desktop` entry it gets no
+leave-your-version-alone guard. A hook left behind by a plugin removal
+finds no template and exits 0 rather than failing every theme switch.
 
 ## Licensing
 

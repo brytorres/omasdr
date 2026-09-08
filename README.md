@@ -86,9 +86,9 @@ later with `omarchy bar move com.omasdr.radio --section left`.
 
 The setup script does the rest: installs missing packages, unbinds the
 kernel's TV driver if it grabbed your dongle, checks udev, finds the device,
-runs `rtl_test`, and confirms the Python bindings. Run it again whenever you
-want; it only installs what is missing, and `--check` verifies without
-changing anything.
+runs `rtl_test`, confirms the Python bindings, and adds OmaSDR to your app
+selector with an icon that follows your theme. Run it again whenever you want; it only installs what is missing,
+and `--check` verifies without changing anything.
 
 It installs these, all from the Arch `extra` repository:
 
@@ -102,7 +102,8 @@ It installs these, all from the Arch `extra` repository:
 Expect a big first download. `gnuradio` depends on `libuhd`, which pulls in
 `dpdk` at around 280 MiB. Nothing has gone wrong.
 
-Then click the antenna in your bar.
+Then click the antenna in your bar, or open OmaSDR from the app selector
+(SUPER+SPACE, then Apps), which opens the expanded window straight away.
 
 ## Updating
 
@@ -214,6 +215,9 @@ of every assumption OmaSDR makes.
 | `~/.config/omasdr/presets.json` | your presets |
 | `~/.config/omasdr/ui.json` | the kHz/MHz choice |
 | `~/Audio/OmaSDR/` | recordings, unless you moved the folder |
+| `~/.local/share/applications/omasdr.desktop` | the app selector entry |
+| `~/.local/share/icons/hicolor/scalable/apps/omasdr.svg` | its icon, repainted on each theme change |
+| `~/.config/omarchy/hooks/theme-set.d/omasdr-theme-icon.sh` | the hook that repaints it |
 
 ## Contributing
 

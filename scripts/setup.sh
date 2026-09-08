@@ -12,6 +12,8 @@ set -uo pipefail
 CHECK_ONLY=0
 [[ ${1:-} == --check ]] && CHECK_ONLY=1
 
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+
 REQUIRED=(rtl-sdr gnuradio-osmosdr usbutils psmisc)
 OPTIONAL=(gqrx)
 
@@ -116,6 +118,68 @@ import osmosdr
 print("  gnuradio", gr.version())
 PY
 then ok "gnuradio and osmosdr import"; else bad "python-gnuradio or gnuradio-osmosdr bindings missing for /usr/bin/python3"; fi
+
+step "Desktop entry"
+# Puts OmaSDR in the app selector (SUPER+SPACE, Apps): the XDG entry and the
+# icon it names. The entry's Exec is the shell IPC the bar's EXPAND button
+# sends, so it needs the Omarchy shell running; there is no standalone binary
+# behind it. An existing file that differs is left alone, so local edits
+# survive an update.
+data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+install_share() { # <relative path under share/> <label>
+  local src="$ROOT/share/$1" dest="$data_home/$1"
+  if [[ ! -f $src ]]; then
+    note "shipped $2 missing at $src"
+  elif [[ -f $dest ]] && cmp -s "$src" "$dest"; then
+    ok "$2 installed"
+  elif [[ -f $dest ]]; then
+    note "$dest differs from the shipped copy; leaving your version alone"
+  elif (( CHECK_ONLY )); then
+    note "$2 not installed (run: bash scripts/setup.sh)"
+  else
+    mkdir -p "$(dirname "$dest")"
+    if cp "$src" "$dest"; then ok "$2 installed"; else bad "could not write $dest"; fi
+  fi
+}
+install_share applications/omasdr.desktop "app selector entry"
+if (( ! CHECK_ONLY )) && command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database "$data_home/applications" >/dev/null 2>&1
+fi
+
+# The icon is generated rather than copied: omasdr-theme-icon.sh paints the
+# shipped white template in the active theme's colour, so it stays legible on
+# the light themes too. Edits to the installed file are overwritten by design.
+icon_src="$ROOT/share/icons/hicolor/scalable/apps/omasdr.svg"
+icon="$data_home/icons/hicolor/scalable/apps/omasdr.svg"
+if [[ ! -f $icon_src ]]; then
+  note "shipped app icon missing at $icon_src"
+elif (( CHECK_ONLY )); then
+  if [[ -f $icon ]]; then ok "app icon installed"; else note "app icon not installed (run: bash scripts/setup.sh)"; fi
+elif bash "$ROOT/scripts/omasdr-theme-icon.sh" && [[ -f $icon ]]; then
+  ok "app icon installed ($(grep -o '#[0-9a-fA-F]\{6\}' "$icon" | head -1))"
+else
+  bad "could not write $icon"
+fi
+
+# Same script as a theme-set hook, so a theme switch repaints the icon.
+hook_src="$ROOT/scripts/omasdr-theme-icon.sh"
+hook_dest="$HOME/.config/omarchy/hooks/theme-set.d/omasdr-theme-icon.sh"
+if [[ ! -f $hook_src ]]; then
+  note "theme hook script missing at $hook_src"
+elif [[ -f $hook_dest ]] && cmp -s "$hook_src" "$hook_dest"; then
+  ok "theme-set hook installed"
+elif (( CHECK_ONLY )); then
+  note "theme-set hook missing or out of date (run: bash scripts/setup.sh)"
+elif command -v omarchy >/dev/null 2>&1 && omarchy hook install theme-set "$hook_src" >/dev/null 2>&1; then
+  ok "theme-set hook installed"
+else
+  mkdir -p "$(dirname "$hook_dest")"
+  if cp "$hook_src" "$hook_dest" && chmod 755 "$hook_dest"; then
+    ok "theme-set hook installed"
+  else
+    bad "could not install the theme-set hook"
+  fi
+fi
 
 step "Summary"
 printf '  %d passed, %d warnings, %d failed\n' "${#pass[@]}" "${#warn[@]}" "${#fail[@]}"

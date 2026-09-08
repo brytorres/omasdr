@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- The OmaSDR mark, the same whip and two arcs ui/AntennaMark.qml draws,
+       with heavier strokes so it stays legible at app-icon sizes. The base is
+       lifted off y=15 because the thicker round caps would overflow the box.
+       This is the template, not the installed icon: every colour in it is
+       #ffffff so scripts/omasdr-theme-icon.sh can repaint the whole mark in
+       the active theme's ink with one substitution. -->
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-width="2.2">
+    <path d="M8 14.4V8.5"/>
+    <path d="M5 14.4h6"/>
+  </g>
+  <circle cx="8" cy="8.5" r="1.7" fill="#ffffff"/>
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-width="1.9">
+    <path d="M4.61 7.63A3.5 3.5 0 0 1 11.39 7.63" opacity="1"/>
+    <path d="M1.704 6.884A6.5 6.5 0 0 1 14.296 6.884" opacity="0.7"/>
+  </g>
+</svg>

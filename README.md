@@ -33,6 +33,9 @@ trying to do. That is the right response to a gap, not a surprise.
   sampled band. Click the plot to tune there.
 - **Eight demodulators.** WFM, WFM stereo, NFM, AM, USB, LSB, CW, and raw.
 - **Recording.** One button writes stereo WAV files to `~/Audio/OmaSDR`.
+- **A frequency reference.** A searchable window of what to listen to and
+  which mode to use, written for somewhere in the world rather than one
+  country.
 - **A daemon that gets out of the way.** It starts when you need it and
   exits after ten idle minutes, unless you ask it to stay.
 
@@ -141,6 +144,13 @@ choose **WFM stereo**, press **PLAY**.
   The red line is where you are tuned, the shaded strip is the passband you
   are listening through. Click anywhere to tune there, scroll to step, hover
   for a frequency readout.
+- **Frequency help.** **FREQ HELP**, under the presets, opens a reference
+  window: which mode to use where, how long to cut an antenna, and what is
+  worth tuning, with the regional differences marked. Type in its search box
+  to narrow it to one thing. It is
+  [docs/frequencies.md](docs/frequencies.md) in the plugin folder and the
+  window follows the file as you edit it, so your own notes can live there.
+  Float it or tile it like any other window.
 - **Gain.** OmaSDR starts at a fixed 25.4 dB. The tuner's own automatic gain
   is in the full window, but it pumps and distorts on strong stations, so a
   fixed value usually sounds better. A dongle at zero gain looks exactly
@@ -225,6 +235,9 @@ of every assumption OmaSDR makes.
 [AGENTS.md](AGENTS.md) holds the design decisions and the roadmap.
 [docs/protocol.md](docs/protocol.md) documents the daemon's socket protocol,
 which anything can speak, not just this plugin.
+[docs/frequencies.md](docs/frequencies.md) is the frequency reference the
+help window renders; corrections and additions for regions this misses are
+very welcome.
 
 ## License
 

@@ -15,7 +15,8 @@ asking the maintainer. Add new decisions here as they are made, with the date.
   the waterfall and spectrum plot.
 - Shipped so far: device detection, frequency entry with a kHz/MHz toggle,
   scroll-to-step tuning, eight demodulators, presets with a repeatable gqrx
-  import, recording, a signal meter, and a spectrum plot with waterfall.
+  import, recording, a signal meter, a spectrum plot with waterfall, and a
+  frequency reference window.
 - Still ahead, roughly in order:
   - Manual or frozen dB range for the spectrum, if auto-range annoys in use.
   - **RDS on FM**: the station name and song text a car radio shows. See the
@@ -26,6 +27,9 @@ asking the maintainer. Add new decisions here as they are made, with the date.
   - AGC mode, DC offset, and I/Q balance controls (`gnuradio-iqbal` is
     already installed).
   - Preset tags and filtering in the popover.
+  - **What is on the air near you**: repeaters and local services looked up
+    by location, as a second button beside FREQ HELP under the presets. The
+    row is already laid out with room for it.
   - **Keyboard shortcuts**, meaning both a Hyprland binding that summons the
     popover (with an example for `~/.config/hypr/bindings.lua` in the README)
     and keys inside it for play, stop, step, record, and jumping to a preset,
@@ -113,6 +117,45 @@ the plot takes 30 % of that box. Nested Qt layouts fill by default, so
 the band and caption rows set `Layout.fillHeight: false` explicitly. Python GNU Radio blocks (the FFT tap,
 logpwrfft) must stay referenced from Python or the scheduler segfaults on
 start; `Receiver._blocks` exists for that reason alone.
+
+**Frequency reference window (2026-09-08).** `docs/frequencies.md` is the
+content and `ui/FreqHelp.qml` renders it at runtime, so the reference is edited
+as markdown and an open window follows the file as it changes (the `FileView`
+watches it). Nothing is duplicated in QML.
+
+- **Its own `FloatingWindow`, held by `Session`.** Both the bar popover and the
+  expanded window open it and there must only ever be one, so it hangs off the
+  singleton behind a `LazyLoader` keyed on `Session.helpOpen` rather than off
+  whichever card was clicked. Inside that loader do not write
+  `FreqHelp { session: session }`: the right-hand `session` resolves to
+  `FreqHelp`'s own property, not to this singleton, and the window comes up
+  unthemed with no document. It already defaults to `Session`.
+- **Own markdown reader (`ui/Markdown.js`), not `Text.MarkdownText`.** Qt does
+  parse GitHub-dialect tables, but it draws them with its own spacing, no
+  borders and no colour control, and this document is mostly tables. The reader
+  handles exactly the subset the document uses — headings, paragraphs, block
+  quotes, fenced code, bullet lists, tables — and the window styles those
+  blocks like the rest of the plugin. Keep the document inside that subset.
+- **Tables keep natural column widths and scroll sideways** rather than
+  wrapping, so the frequency columns line up down the page. Every cell sets
+  `Layout.fillWidth` or its background stops where its text does and the row
+  shading looks ragged; the slack goes to the first column through
+  `Layout.horizontalStretchFactor`.
+- **Search keeps context.** A matching heading brings its whole section, a
+  matching row brings its headings back with it, and tables narrow to their
+  matching rows unless the section itself was the match.
+- **The document is region-aware on purpose.** A region-neutral core, then
+  clearly headed sections for the United States and Canada, Europe and ITU
+  Region 1, and Asia-Pacific. Do not quietly promote a national number into
+  the core, and say which country a number belongs to.
+
+**The popover is the tuner; the window owns the daemon (2026-09-08).** "keep
+daemon running" moved out of the shared tuner card into the expanded window's
+bottom bar beside "stop daemon", so the two daemon controls sit together and
+the bar popover carries none. That left the popover with no footer, so FREQ
+HELP and EXPAND share one row under the presets rather than sitting on two:
+the reference on the left, EXPAND on the right, and a spacer between them with
+room for the "near you" search when it arrives.
 
 **Presets: own JSON store with a repeatable gqrx import.**
 
@@ -270,6 +313,7 @@ OmaSDR/
 │   └── omasdrd.py         flowgraph, both sockets, presets, CLI. System python3
 ├── docs/
 │   ├── protocol.md        the daemon ↔ UI contract
+│   ├── frequencies.md     the frequency reference the help window renders
 │   └── media/README.md    how to recapture and publish README shots
 ├── share/                 what setup.sh copies into $XDG_DATA_HOME
 │   ├── applications/
@@ -291,10 +335,12 @@ OmaSDR/
     ├── Spectrum.qml       plot and waterfall (two ping-pong canvases)
     ├── Engine.qml         control-socket client
     ├── FftStream.qml      spectrum-socket client
+    ├── FreqHelp.qml       the frequency reference window
     ├── Session.qml        singleton: connection, theme, on-demand daemon start
     ├── Theme.qml          Omarchy palette, parsed by Toml.js
     ├── AntennaMark.qml    the icon
     ├── Freq.js            the only code that knows about kHz and MHz
+    ├── Markdown.js        the markdown subset FreqHelp renders
     ├── shell.qml          standalone launcher (scripts/run.sh)
     └── qmldir             component registrations
 ```

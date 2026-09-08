@@ -324,27 +324,6 @@ FocusScope {
         }
         Timer { id: noticeTimer; interval: 6000; onTriggered: card.notice = "" }
 
-        // Footer.
-        RowLayout {
-            Layout.fillWidth: true
-            CheckBox {
-                id: keep
-                text: "keep daemon running"
-                checked: card.state ? card.state.keep_running : false
-                onToggled: card.engine.send({type: "set_keep_running", enabled: checked})
-                font.family: card.theme.font
-                font.pixelSize: card.theme.baseSize - 1
-                contentItem: Label { text: keep.text; leftPadding: keep.indicator.width + 6; verticalAlignment: Text.AlignVCenter; opacity: .8; font.pixelSize: card.theme.baseSize - 1 }
-                indicator: Rectangle {
-                    implicitWidth: 14; implicitHeight: 14
-                    y: parent.height / 2 - height / 2
-                    color: keep.checked ? card.theme.accent : "transparent"
-                    border.width: 1; border.color: keep.checked ? card.theme.accent : Qt.alpha(card.theme.foreground, .4)
-                }
-            }
-            Item { Layout.fillWidth: true }
-            Control { text: "⤢ EXPAND"; visible: card.compact; onClicked: card.expandRequested() }
-        }
     }
 
     Loader { Layout.preferredWidth: 260; Layout.alignment: Qt.AlignTop; active: card.presetsBeside; visible: active; sourceComponent: presetsBlock }
@@ -466,6 +445,29 @@ FocusScope {
                         font.pixelSize: card.theme.baseSize - 1
                         text: card.hoverText
                     }
+                }
+            }
+            // The row under the presets: the reference on the left, with room
+            // beside it for the "near you" search later, and EXPAND on the
+            // right in the popover. The daemon controls are not here; they
+            // live in the window's bottom bar.
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 2
+                spacing: 6
+                Control {
+                    text: "ℹ FREQ HELP"
+                    Accessible.name: "Open the frequency reference"
+                    implicitHeight: 22
+                    selected: card.session.helpOpen
+                    onClicked: card.session.toggleHelp()
+                }
+                Item { Layout.fillWidth: true }
+                Control {
+                    text: "⤢ EXPAND"
+                    implicitHeight: 22
+                    visible: card.compact
+                    onClicked: card.expandRequested()
                 }
             }
         }

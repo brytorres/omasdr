@@ -2,6 +2,7 @@ singleton Session 1.0 Session.qml
 AntennaMark 1.0 AntennaMark.qml
 Engine 1.0 Engine.qml
 FftStream 1.0 FftStream.qml
+FreqHelp 1.0 FreqHelp.qml
 Panel 1.0 Panel.qml
 Popover 1.0 Popover.qml
 RadioBar 1.0 RadioBar.qml

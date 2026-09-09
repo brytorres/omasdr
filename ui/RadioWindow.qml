@@ -227,6 +227,10 @@ Item {
                     stream: fft
                     theme: app.theme
                     bandplan: app.engine.bandplan
+                    // Nearby channels over the live spectrum, but only while
+                    // the search window is up: they are a temporary overlay
+                    // for reading the band, not part of the receiver.
+                    markers: app.session.searchOpen ? app.engine.nearbyResults : []
                     step: app.state ? app.state.step : 100000
                     plotHeight: Math.max(90, Math.round(height * 0.3))
                     onTuneRequested: hz => app.engine.send({type: "set_frequency", frequency: hz})

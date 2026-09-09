@@ -10,6 +10,9 @@ cd "$(dirname "$0")/.."
 SCRATCH="$(mktemp -d)"
 export OMASDR_RUNTIME_DIR="$SCRATCH/omasdr"
 export XDG_CONFIG_HOME="$SCRATCH/config"
+# Also scratch the cache, so a nearby search here never disturbs (or silently
+# leans on) the real downloaded index.
+export XDG_CACHE_HOME="$SCRATCH/cache"
 cleanup() {
   status=$?
   /usr/bin/python3 daemon/omasdrd.py stop >/dev/null 2>&1 || true
@@ -20,7 +23,33 @@ cleanup() {
   exit $status
 }
 trap cleanup EXIT
-/usr/bin/python3 -m py_compile daemon/omasdrd.py
+/usr/bin/python3 -m py_compile daemon/omasdrd.py daemon/nearby.py
+
+# Nearby search: the parts that need no network. The live search only runs
+# with OMASDR_CHECK_NET=1, because this suite has to work anywhere.
+/usr/bin/python3 - <<'NEARBY'
+import sys
+sys.path.insert(0, "daemon")
+import nearby
+def check(cond, what):
+    print(("  ok   " if cond else "  FAIL ") + what)
+    if not cond: raise SystemExit(1)
+def near(a, b, tol=0.01): return abs(a - b) < tol
+
+lat, lon = nearby.parse_grid("IO91wm")
+check(near(lat, 51.52, 0.02) and near(lon, -0.125, 0.05), "maidenhead 6-character grid (IO91wm is London)")
+lat, lon = nearby.parse_grid("FL96")
+check(near(lat, 26.5) and near(lon, -61.0), "maidenhead 4-character grid centres its square")
+check(nearby.parse_grid("Melbourne") is None, "a place name is not a grid square")
+check(nearby.parse_latlon("28.0785, -80.6078") == (28.0785, -80.6078), "coordinate pair parsed")
+check(nearby.parse_latlon("91, 0") is None, "impossible latitude refused")
+check(round(nearby.haversine(51.5074, -0.1278, 48.8566, 2.3522)) == 344, "haversine London to Paris is 344 km")
+check(nearby._offset_label(-600_000) == "-600 kHz" and nearby._offset_label(5_000_000) == "+5 MHz", "repeater offset labels")
+check(nearby._offset_label(0) == "simplex", "no offset reads as simplex")
+check("FM" in nearby._tokens("YSF/FM") and "FM" not in nearby._tokens("C4FM"), "mixed-mode repeaters kept, digital-only dropped")
+check(nearby._repair("V\u00c3\u00a4stra") == "V\u00e4stra", "double-encoded city names repaired")
+NEARBY
+
 /usr/bin/python3 daemon/omasdrd.py ensure
 for _ in $(seq 40); do [[ -S "$OMASDR_RUNTIME_DIR/control.sock" ]] && break; sleep 0.1; done
 /usr/bin/python3 - <<'PY'
@@ -88,6 +117,22 @@ elif dev["status"] == "busy":
     send({"type": "play"}); r = until("state"); check(not r["playing"] and "held by" in r["error"].lower(), "busy device reported, not crashed")
 else:
     print("  skip playback: no device")
+check("location" in state, "state carries the saved location")
+send({"type": "search_nearby"}); r = until("nearby", "error")
+check(r["type"] == "error" and "location" in r["message"].lower(), "nearby search with no location refused")
+if os.environ.get("OMASDR_CHECK_NET") == "1":
+    send({"type": "search_nearby", "latitude": 28.0785, "longitude": -80.6078, "limit": 4, "radius_km": 40})
+    r = until("nearby"); check(r["status"] == "searching", "nearby search answers before it works")
+    s.settimeout(240)
+    r = until("nearby")
+    check(r["status"] == "ok", "nearby search returned (" + str(r.get("message", "")) + ")")
+    kinds = {x["kind"] for x in r["results"]}
+    check("airband" in kinds and "repeater" in kinds, "both airband and repeaters found")
+    check(all(x["demod"] in ("am", "nfm") and x["frequency"] > 0 for x in r["results"]), "results are tunable presets")
+    check(len(r["sources"]) == 2, "both sources credited")
+    s.settimeout(20)
+else:
+    print("  skip nearby network check (set OMASDR_CHECK_NET=1)")
 send({"type": "quit"}); check(until("bye")["type"] == "bye", "quit")
 print("all checks passed")
 PY

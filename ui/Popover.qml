@@ -462,6 +462,13 @@ FocusScope {
                     selected: card.session.helpOpen
                     onClicked: card.session.toggleHelp()
                 }
+                Control {
+                    text: "⌕ FREQ SEARCH"
+                    Accessible.name: "Find what is on the air near you"
+                    implicitHeight: 22
+                    selected: card.session.searchOpen
+                    onClicked: card.session.toggleSearch()
+                }
                 Item { Layout.fillWidth: true }
                 Control {
                     text: "⤢ EXPAND"

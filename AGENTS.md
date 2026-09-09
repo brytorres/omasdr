@@ -16,7 +16,8 @@ asking the maintainer. Add new decisions here as they are made, with the date.
 - Shipped so far: device detection, frequency entry with a kHz/MHz toggle,
   scroll-to-step tuning, eight demodulators, presets with a repeatable gqrx
   import, recording, a signal meter, a spectrum plot with waterfall, and a
-  frequency reference window.
+  frequency reference window, and a nearby search for local airband and
+  repeaters.
 - Still ahead, roughly in order:
   - Manual or frozen dB range for the spectrum, if auto-range annoys in use.
   - **RDS on FM**: the station name and song text a car radio shows. See the
@@ -27,9 +28,6 @@ asking the maintainer. Add new decisions here as they are made, with the date.
   - AGC mode, DC offset, and I/Q balance controls (`gnuradio-iqbal` is
     already installed).
   - Preset tags and filtering in the popover.
-  - **What is on the air near you**: repeaters and local services looked up
-    by location, as a second button beside FREQ HELP under the presets. The
-    row is already laid out with room for it.
   - **Keyboard shortcuts**, meaning both a Hyprland binding that summons the
     popover (with an example for `~/.config/hypr/bindings.lua` in the README)
     and keys inside it for play, stop, step, record, and jumping to a preset,
@@ -109,6 +107,25 @@ value. Lerping towards a target every frame, which is what shipped first,
 made the trace and its grid crawl continuously; that reads as jitter even
 though the data is fine. The signal moves, the axis should not.
 
+**Spectrum view is centred on the tuned channel, not on the frame
+(2026-09-08).** The frame arrives centred on the hardware, and offset tuning
+puts the hardware 300 kHz above the wanted channel, so drawing the frame as
+sent leaves the red marker at 37.5 % of the width instead of the middle —
+which is exactly how it looked. The view is a window onto the frame instead:
+centred on `freq`, spanning `rate - 2 × offset`, so 1.8 MHz of a 2.4 MS/s
+band. Bins are consequently placed **by frequency** in both the plot and the
+waterfall, through `binAt` / `binHz`; do not put `i / (n - 1) * w` back, it
+assumes the view is the whole frame. The outer 300 kHz at each edge goes
+unshown, which is the price of the marker sitting where the user is actually
+listening. A degenerate offset falls back to the frame as sent.
+
+**Nearby channels over the spectrum (2026-09-08).** `Spectrum.markers` draws
+search results as yellow ticks with labels, and `RadioWindow` feeds it only
+while the search window is open: they are a reading aid, not receiver state.
+Labels are dropped where they would collide with the previous one, which only
+works drawing left to right — the results arrive in distance order, and using
+that order suppressed labels at random rather than by position.
+
 **Expanded window layout (2026-09-08).** The top band, about a third of the
 height, holds the tuner card (presets beside it when the window is at
 least 1040 px wide, under it otherwise) and the receiver settings. The
@@ -141,7 +158,14 @@ watches it). Nothing is duplicated in QML.
   `Layout.fillWidth` or its background stops where its text does and the row
   shading looks ragged; the slack goes to the first column through
   `Layout.horizontalStretchFactor`.
-- **Search keeps context.** A matching heading brings its whole section, a
+- **Results are listed in frequency order, not distance order.** The daemon
+still *picks* the nearest N of each kind — that is what makes it a nearby
+search — but a list of channels reads the way a band does, and the distance
+stays in its own column. The reload control is the word `RELOAD` rather than
+a ↻ glyph, which rendered closer to a hook in the theme's monospace face; it
+carries a hover tooltip saying what it re-downloads.
+
+**Search keeps context.** A matching heading brings its whole section, a
   matching row brings its headings back with it, and tables narrow to their
   matching rows unless the section itself was the match.
 - **The document is region-aware on purpose.** A region-neutral core, then
@@ -152,10 +176,10 @@ watches it). Nothing is duplicated in QML.
 **The popover is the tuner; the window owns the daemon (2026-09-08).** "keep
 daemon running" moved out of the shared tuner card into the expanded window's
 bottom bar beside "stop daemon", so the two daemon controls sit together and
-the bar popover carries none. That left the popover with no footer, so FREQ
-HELP and EXPAND share one row under the presets rather than sitting on two:
-the reference on the left, EXPAND on the right, and a spacer between them with
-room for the "near you" search when it arrives.
+the bar popover carries none. That left the popover with no footer, so the row
+under the presets carries FREQ HELP and FREQ SEARCH on the left and EXPAND on
+the right, with a spacer between them. In the expanded window the same row
+loses only EXPAND.
 
 **Presets: own JSON store with a repeatable gqrx import.**
 
@@ -298,6 +322,119 @@ works with an RTL-SDR, but it wants about 1.5 MS/s, noticeably more CPU, and
 a stronger signal than analogue FM needs. Treat it as a separate feature
 from RDS, not a replacement.
 
+## Nearby search (2026-09-08)
+
+The second button under the presets, beside FREQ HELP: what is worth hearing
+from where the user actually is. **Framed as "near you", not as a repeater
+finder.** This radio cannot transmit, and a repeater directory is mostly a
+transmit-side tool; the local airport is the target that reliably has
+something on it. The output is not a list to read, it is **presets to add in
+one click** — that is the point of the feature, and it is what makes the
+preset store pay off for a new user.
+
+**Sources, decided after checking each one live rather than from memory.**
+
+- **Airband: OurAirports.** `airport-frequencies.csv` (~1.3 MB, refreshed
+  nightly) plus `airports.csv` for coordinates, from
+  `davidmegginson.github.io/ourairports-data/`. Public domain, 80,000
+  airports worldwide, tower/ground/ATIS/approach. No key, no terms
+  conversation. This is the half of the feature with zero legal friction.
+- **Repeaters: hearham.com.** `https://hearham.com/api/repeaters/v1`, no key
+  and no required headers. Verified 2026-09-08: 200, 9.5 MB, 22,659 records.
+  Fields include `callsign, latitude, longitude, city, group, mode, encode,
+  decode, frequency, offset, description, operational`. **Frequency and offset
+  are already integer hertz** (`145270000`, `-600000`), which matches this
+  project's rule exactly, and CTCSS tones are present. Coverage by coordinate
+  bucket: 15,074 North America, 5,688 Europe, 1,445 Australia/NZ, 217 Asia,
+  96 South America, 52 Africa; 19,185 flagged operational.
+  Known dirt to handle: no proximity query (fetch all, filter client-side),
+  inconsistent mode strings (`D-STAR` / `D-star` / `DMR   ` with trailing
+  spaces), and some double-encoded city strings (`VÃ¤stra GÃ¶taland`).
+
+**Sources ruled out, so they do not get re-proposed.**
+
+- **RepeaterBook.** Better data, but as of 2026-03-03 the API is restricted to
+  approved clients: every call needs an `X-RB-App-Token`, either a shared app
+  token granted on application or a per-user token each user generates. Terms
+  require written permission for offline bundling or redistribution. Revisit
+  only if someone wants to apply; per-user tokens are the signup this feature
+  exists to avoid.
+- **OpenStreetMap / Overpass.** Not a data source. Queried 2026-09-08:
+  38 objects worldwide for `communication:amateur_radio=repeater`, zero for
+  `amateur_radio=repeater`. Do not spend time on this again.
+- **RadioReference.** Paid subscription API.
+- **NOAA Weather Radio.** No machine-readable station list; weather.gov offers
+  only an HTML listing that would have to be scraped once and shipped as a
+  snapshot, and it is US-only. Not in the first version.
+- Marine, FRS/GMRS, PMR446 and the rest are fixed channel plans that need no
+  lookup at all. They are already in `docs/frequencies.md`.
+
+**Location: asked once, remembered, never guessed.** A field taking a
+Maidenhead locator (`FL96`) or raw coordinates, plus city and postcode
+resolved through **Nominatim**, which needs no key. Nominatim's policy binds
+us: a real identifying User-Agent, at most one request a second, and the
+daemon enforces that on itself rather than trusting that a user cannot click
+quickly. The resolved coordinates persist in the daemon's own
+`settings.json` and ride back on `state.location`, so a reopened window
+searches again without geocoding; `ui.json` was the first plan and was wrong,
+because the daemon does the resolving and already owns that file. Do **not**
+build on GeoClue2: its Wi-Fi positioning depended on Mozilla Location
+Service, which shut down in 2024.
+
+**Data reaches disk by download on first use, cached, refreshed on demand.**
+Nothing ships in the repository — `omarchy plugin add` clones the whole branch
+onto every user's disk, the same reason screenshots are release assets, and
+redistributing hearham's data is the part its terms least clearly permit.
+Cache under `~/.cache/omasdr/`. **A stale cache is a fine cache**: the search
+must work offline against whatever was last fetched, because everything else
+in OmaSDR works offline and this is the first thing that will not.
+
+**Attribution, and the licence position, stated plainly.** OurAirports is
+public domain. hearham publishes the endpoint openly and says the data is
+"free to use in your application", but points only at a generic terms page,
+so there is no explicit licence. Decision: use it, credit hearham
+prominently in the results panel and the README, and stop if they ask us to.
+That is an assumption, recorded here as one. Anyone who gets a written answer
+from them should replace this paragraph with it.
+
+**Where the fetch lives: the daemon**, in its own module `daemon/nearby.py`.
+It already owns the config directory, speaks JSON, and has Python's HTTP
+client; QML would have to parse 9.5 MB on the UI thread. A separate module
+because HTTP, CSV and geocoding are not radio work and should not thicken
+`omasdrd.py`.
+
+**`search_nearby` answers twice, and that is deliberate.** `Daemon.handle()`
+holds the daemon lock for the whole of a command, and this one geocodes and
+may download 14 MB, so doing it inline would freeze every client and the
+receiver with it. The reply is `{"status": "searching"}`; the result arrives
+later as a second unsolicited `nearby` message to the requesting client
+alone. A client that disconnected meanwhile never gets it, which is fine. The
+worker takes the lock only to store the location and broadcast `state`, and
+clears `self.sender` first so that broadcast reaches everyone.
+
+**Indexes are derived, and the raw downloads are thrown away.**
+`airports.csv` is 12 MB and only three of its columns matter, so it is
+streamed rather than buffered, joined against the airband rows, and written
+out as a compact index. Same for hearham: 9.5 MB in, analogue FM entries with
+coordinates out. Rebuild weekly, or on `refresh`. **If a rebuild fails and a
+cached index exists, that is not an error** — the old index is returned with
+a note, because the search working offline matters more than it being current.
+
+**Digital-only repeaters are dropped at build time.** DMR, D-STAR, YSF and
+P25 are filtered by looking for a bare `FM` token in the mode string, which
+keeps mixed-mode entries like `YSF/FM` and drops `C4FM`. OmaSDR demodulates
+none of them, so listing them would only waste the user's time. The window
+says so rather than leaving the absence unexplained.
+
+**Airband results rank inside an airport.** One airport contributes a dozen
+frequencies at the same distance, so distance alone would sort them
+alphabetically and bury the tower. `ROLES` carries a rank next to each label,
+and the sort is distance, then rank: tower, ATIS, ground first.
+
+**hearham's city strings are double-encoded at the source**
+(`VÃ¤stra GÃ¶taland`). `_repair()` undoes it when the string round-trips
+through latin-1 cleanly and leaves it alone when it does not.
+
 ## Repository layout
 
 ```
@@ -310,7 +447,8 @@ OmaSDR/
 ├── CLAUDE.md              pointer to this file
 ├── LICENSE                MIT
 ├── daemon/
-│   └── omasdrd.py         flowgraph, both sockets, presets, CLI. System python3
+│   ├── omasdrd.py         flowgraph, both sockets, presets, CLI. System python3
+│   └── nearby.py          the nearby search: sources, cache, geocoding
 ├── docs/
 │   ├── protocol.md        the daemon ↔ UI contract
 │   ├── frequencies.md     the frequency reference the help window renders
@@ -336,6 +474,7 @@ OmaSDR/
     ├── Engine.qml         control-socket client
     ├── FftStream.qml      spectrum-socket client
     ├── FreqHelp.qml       the frequency reference window
+    ├── FreqSearch.qml     the nearby search window
     ├── Session.qml        singleton: connection, theme, on-demand daemon start
     ├── Theme.qml          Omarchy palette, parsed by Toml.js
     ├── AntennaMark.qml    the icon

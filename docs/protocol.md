@@ -55,6 +55,7 @@ scroll-to-step for that demod in hertz.
  "recording_started": 0,
  "record_dir": "/home/you/Audio/OmaSDR",
  "device": {"status": "ours", "name": "RTLSDRBlog Blog V4", "serial": "00000001", "args": "rtl=0", "held_by": ""},
+ "location": {"name": "Melbourne, Brevard County, Florida", "latitude": 28.0785, "longitude": -80.6078, "source": "OpenStreetMap"},
  "error": ""}
 ```
 
@@ -72,6 +73,8 @@ scroll-to-step for that demod in hertz.
   is its Unix start time. Recording stops with playback.
 - `error` is the last receiver failure in one line, or empty. It is cleared
   by the next successful `play`.
+- `location` is where the user last searched from, `{}` until they say. It is
+  never guessed: the daemon has no geolocation of any kind.
 
 ### presets
 
@@ -96,6 +99,48 @@ Reply to `import_gqrx`, after the `presets` broadcast.
 ```json
 {"v": 1, "type": "imported", "added": 12, "skipped": 3}
 ```
+
+### nearby
+
+Reply to `search_nearby`, and then again when the search finishes. Only the
+requesting client hears both.
+
+```json
+{"v": 1, "type": "nearby", "status": "searching"}
+```
+
+```json
+{"v": 1, "type": "nearby", "status": "ok",
+ "location": {"name": "Melbourne, Brevard County, Florida", "latitude": 28.0785, "longitude": -80.6078, "source": "OpenStreetMap"},
+ "results": [
+   {"kind": "airband", "name": "KMLB Tower", "frequency": 118200000, "demod": "am",
+    "distance_km": 4.2, "detail": "Melbourne Orlando International Airport · Tower", "tags": ["airband"]},
+   {"kind": "repeater", "name": "K4RPT", "frequency": 146745000, "demod": "nfm",
+    "distance_km": 1.5, "detail": "Melbourne, Florida · -600 kHz · CTCSS 107.2", "tags": ["repeater"]}],
+ "sources": [{"kind": "airband", "name": "OurAirports", "note": "public domain", "built": 1788912592, "count": 27722},
+             {"kind": "repeaters", "name": "hearham.com", "note": "free to use, credited", "built": 1788912600, "count": 13959}],
+ "notes": [], "hint": "digital-only repeaters (DMR, D-STAR, YSF, P25) are not listed"}
+```
+
+```json
+{"v": 1, "type": "nearby", "status": "error", "message": "Nowhere called 'asdfgh'"}
+```
+
+- **Two replies, not one.** The first arrives immediately; the second may take
+  a quarter of a minute the first time, because the daemon is geocoding and
+  downloading. The command handler holds the daemon lock, so this work happens
+  on a thread and the answer is unsolicited. A client that has disconnected by
+  then simply never receives it.
+- Every result carries exactly what `save_preset` wants — `name`, `frequency`,
+  `demod`, `tags` — so "add as a preset" is one message with no translation.
+- `results` are grouped by kind, nearest first inside each; each kind is
+  limited separately so neither buries the other. Airband entries at the same
+  airport arrive tower, ATIS, ground first rather than alphabetically.
+- `sources` must be shown to the user: crediting both is the condition this
+  feature ships under. `built` is when that index was last downloaded.
+- `notes` carries anything degraded, such as a source being unreachable and a
+  cached copy being used instead. A stale cache is not an error.
+- A successful search also broadcasts `state`, because it stores `location`.
 
 ### error
 
@@ -133,6 +178,7 @@ Reply to `quit`, then the daemon exits.
 | `save_preset` | `name`, `frequency`, `demod`, `tags` | `presets` | replaces a preset at the same frequency |
 | `delete_preset` | `frequency` | `presets` | |
 | `import_gqrx` | | `imported` | never overwrites an existing frequency |
+| `search_nearby` | `place` or `latitude`+`longitude`; optional `kinds`, `limit`, `radius_km`, `refresh` | `nearby`, twice | `place` takes a Maidenhead locator, a coordinate pair, or anything Nominatim resolves; omit everything to reuse the stored location |
 | `quit` | | `bye` | |
 
 ## FFT socket
@@ -190,6 +236,30 @@ written in the file, usually `#AARRGGBB`). Empty when the file is missing.
 | `$XDG_RUNTIME_DIR/omasdr/fft.sock` | daemon | the spectrum socket |
 | `$XDG_RUNTIME_DIR/omasdr/daemon.pid` | daemon | pid of the running daemon |
 | `$XDG_RUNTIME_DIR/omasdr/daemon.log` | daemon | stderr of a daemon started with `ensure` |
+| `~/.cache/omasdr/nearby-airband.json` | daemon | derived airband index; rebuilt weekly or on `refresh` |
+| `~/.cache/omasdr/nearby-repeaters.json` | daemon | derived repeater index; same |
+
+## Nearby search
+
+`search_nearby` answers "what is worth hearing from here" out of two datasets
+that need no API key, downloaded on first use and cached under
+`~/.cache/omasdr`:
+
+- **OurAirports** (public domain) for VHF airband, 118–137 MHz: tower, ATIS,
+  ground, approach and the rest, at 80,000 airports worldwide.
+- **hearham.com** for analogue FM amateur repeaters. Digital-only repeaters
+  (DMR, D-STAR, YSF, P25) are dropped when the index is built, because
+  OmaSDR demodulates none of them.
+
+Neither dataset is redistributed with the plugin; the raw downloads are not
+kept either, only the derived indexes. Indexes rebuild when they are older
+than a week or when `refresh` is set, and **a stale index is used happily**:
+the search works offline against whatever was last fetched.
+
+Geocoding goes through Nominatim, which needs no key but binds the daemon to
+its usage policy: an identifying `User-Agent` and at most one request a
+second, which the daemon enforces on itself. A Maidenhead locator or a
+coordinate pair is resolved locally and never reaches the network.
 
 ## Lifecycle
 

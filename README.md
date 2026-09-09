@@ -36,6 +36,9 @@ trying to do. That is the right response to a gap, not a surprise.
 - **A frequency reference.** A searchable window of what to listen to and
   which mode to use, written for somewhere in the world rather than one
   country.
+- **A search for what is near you.** Type a town and get the local airport's
+  tower and ATIS and the repeaters around you, ready to save as presets. No
+  account, no API key, and it never asks where you are without being told.
 - **A daemon that gets out of the way.** It starts when you need it and
   exits after ten idle minutes, unless you ask it to stay.
 
@@ -151,6 +154,22 @@ choose **WFM stereo**, press **PLAY**.
   [docs/frequencies.md](docs/frequencies.md) in the plugin folder and the
   window follows the file as you edit it, so your own notes can live there.
   Float it or tile it like any other window.
+- **Near you.** **FREQ SEARCH**, beside FREQ HELP, asks what is worth hearing
+  where you are. Type a town, a postcode, a Maidenhead grid square like
+  `IO91wm`, or a coordinate pair; nothing is detected about you and nothing is
+  sent anywhere except the place you type. You get the nearest airband
+  frequencies — tower, ATIS, ground — and the nearest analogue FM repeaters,
+  each with its distance, offset and CTCSS tone. Click a row to tune it, the
+  star to keep it, or **add all** to fill your presets with the frequencies
+  of where you actually live. Digital repeaters (DMR, D-STAR, YSF, P25) are
+  left out because OmaSDR cannot decode them.
+
+  The data comes from [OurAirports](https://ourairports.com/data/) (public
+  domain) and [hearham.com](https://hearham.com/repeaters), downloaded the
+  first time you search and cached under `~/.cache/omasdr`. After that it
+  works offline, and the ↻ button fetches it again. Places are resolved by
+  [Nominatim](https://nominatim.openstreetmap.org/); a grid square or a
+  coordinate pair never leaves your machine at all.
 - **Gain.** OmaSDR starts at a fixed 25.4 dB. The tuner's own automatic gain
   is in the full window, but it pumps and distorts on strong stations, so a
   fixed value usually sounds better. A dongle at zero gain looks exactly
@@ -225,6 +244,7 @@ of every assumption OmaSDR makes.
 | `~/.config/omasdr/presets.json` | your presets |
 | `~/.config/omasdr/ui.json` | the kHz/MHz choice |
 | `~/Audio/OmaSDR/` | recordings, unless you moved the folder |
+| `~/.cache/omasdr/nearby-*.json` | the airband and repeater data FREQ SEARCH uses; safe to delete |
 | `~/.local/share/applications/omasdr.desktop` | the app selector entry |
 | `~/.local/share/icons/hicolor/scalable/apps/omasdr.svg` | its icon, repainted on each theme change |
 | `~/.config/omarchy/hooks/theme-set.d/omasdr-theme-icon.sh` | the hook that repaints it |
@@ -238,6 +258,17 @@ which anything can speak, not just this plugin.
 [docs/frequencies.md](docs/frequencies.md) is the frequency reference the
 help window renders; corrections and additions for regions this misses are
 very welcome.
+
+## Credits
+
+FREQ SEARCH is only as good as the people who keep its data:
+[OurAirports](https://ourairports.com/data/), which puts 80,000 airports and
+their frequencies in the public domain, and
+[hearham.com](https://hearham.com/repeaters), which publishes an open repeater
+listing for anyone to use. Place lookup is
+[Nominatim](https://nominatim.openstreetmap.org/), from OpenStreetMap.
+Neither dataset is redistributed here; OmaSDR fetches it on your machine when
+you ask it to.
 
 ## License
 

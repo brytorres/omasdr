@@ -9,6 +9,10 @@ Item {
     required property var stream
     required property var theme
     property var bandplan: []
+    /// Temporary channel markers: [{frequency, name, kind}]. The nearby search
+    /// fills these while its window is open, so the user can see where the
+    /// local airband and repeater channels sit against the live spectrum.
+    property var markers: []
     property int step: 100000
     property real floorDb: -100
     property real ceilDb: -20
@@ -34,6 +38,7 @@ Item {
         lut = table;
     }
     onThemeChanged: { buildLut(); plot.requestPaint(); waterfall.clear(); }
+    onMarkersChanged: plot.requestPaint()
     Component.onCompleted: buildLut()
 
     // Auto-range, snapped and hysteretic. Lerping towards a target every
@@ -51,11 +56,36 @@ Item {
         if (Math.abs(lo - floorDb) >= 5) floorDb = lo;
         if (Math.abs(hi - ceilDb) >= 5) ceilDb = hi;
     }
-    function xToHz(x) {
-        if (!frame) return 0;
-        return Math.round(frame.center - frame.rate / 2 + x / width * frame.rate);
+    // The hardware is tuned 300 kHz above the wanted channel and the filter
+    // shifts it back (AGENTS.md, offset tuning), so the frame's centre is not
+    // what the user is listening to. Drawing the frame as it arrives puts the
+    // tuned marker left of centre by that offset, which is what it looked
+    // like. Centre the view on the tuned channel instead, over the widest
+    // symmetric span the frame actually covers: rate - 2 × offset. That costs
+    // the outer 2 × 300 kHz of a 2.4 MS/s band and buys a view whose middle
+    // is the thing being received.
+    readonly property real viewSpan: {
+        if (!frame) return 1;
+        var span = frame.rate - 2 * Math.abs(frame.center - frame.freq);
+        // A pathological offset would leave nothing to show; fall back to the
+        // frame as sent rather than to a sliver.
+        return span > frame.rate * 0.2 ? span : frame.rate;
     }
-    function hzToX(hz) { return frame ? (hz - (frame.center - frame.rate / 2)) / frame.rate * width : 0; }
+    readonly property real viewLo: {
+        if (!frame) return 0;
+        var centre = viewSpan < frame.rate ? frame.freq : frame.center;
+        return centre - viewSpan / 2;
+    }
+    function xToHz(x) { return frame ? Math.round(viewLo + x / width * viewSpan) : 0; }
+    function hzToX(hz) { return frame ? (hz - viewLo) / viewSpan * width : 0; }
+    /// Where a frequency falls in the frame's bins, which still span the whole
+    /// sampled band regardless of what the view shows.
+    function binAt(hz) {
+        return frame ? (hz - (frame.center - frame.rate / 2)) / frame.rate * frame.bins.length : 0;
+    }
+    function binHz(i) {
+        return frame ? frame.center - frame.rate / 2 + (i + 0.5) / frame.bins.length * frame.rate : 0;
+    }
     function niceStep(span) {
         var raw = span / 6, mag = Math.pow(10, Math.floor(Math.log10(raw)));
         for (var m of [1, 2, 2.5, 5, 10]) if (raw <= m * mag) return m * mag;
@@ -84,7 +114,7 @@ Item {
             ctx.fillStyle = Qt.alpha(view.theme.background, .5);
             ctx.fillRect(0, 0, w, h);
             if (!f) return;
-            var lo = f.center - f.rate / 2, span = f.rate;
+            var lo = view.viewLo, span = view.viewSpan;
             // Bandplan bars along the top.
             ctx.font = "9px " + view.theme.font;
             for (var band of view.bandplan) {
@@ -113,26 +143,61 @@ Item {
                 ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
                 if (y > 26) ctx.fillText(db + " dB", 3, y - 2);   // keep clear of the bandplan strip
             }
-            // The trace.
+            // The trace. Bins are placed by their frequency rather than by
+            // index, because the view is a window onto the frame now, not the
+            // whole of it.
             var n = f.bins.length, range = view.ceilDb - view.floorDb;
+            var i0 = Math.max(0, Math.floor(view.binAt(lo)));
+            var i1 = Math.min(n - 1, Math.ceil(view.binAt(lo + span)));
             ctx.beginPath();
-            ctx.moveTo(0, h);
-            for (var i = 0; i < n; i++) {
+            ctx.moveTo(view.hzToX(view.binHz(i0)), h);
+            for (var i = i0; i <= i1; i++) {
                 var v = (f.bins[i] - view.floorDb) / range;
-                ctx.lineTo(i / (n - 1) * w, h - Math.max(0, Math.min(1, v)) * (h - 16));
+                ctx.lineTo(view.hzToX(view.binHz(i)), h - Math.max(0, Math.min(1, v)) * (h - 16));
             }
-            ctx.lineTo(w, h);
+            ctx.lineTo(view.hzToX(view.binHz(i1)), h);
             ctx.closePath();
             ctx.fillStyle = Qt.alpha(view.theme.accent, .18);
             ctx.fill();
             ctx.strokeStyle = view.theme.accent;
             ctx.lineWidth = 1.2;
             ctx.beginPath();
-            for (var j = 0; j < n; j++) {
+            for (var j = i0; j <= i1; j++) {
                 var vv = (f.bins[j] - view.floorDb) / range, yy = h - Math.max(0, Math.min(1, vv)) * (h - 16);
-                if (j === 0) ctx.moveTo(0, yy); else ctx.lineTo(j / (n - 1) * w, yy);
+                if (j === i0) ctx.moveTo(view.hzToX(view.binHz(j)), yy);
+                else ctx.lineTo(view.hzToX(view.binHz(j)), yy);
             }
             ctx.stroke();
+
+            // Nearby channels, while the search window is open. Ticks always,
+            // labels only where one fits without landing on the last.
+            if (view.markers.length) {
+                ctx.font = "9px " + view.theme.font;
+                var lastLabelEnd = -1e9;
+                // Left to right, or the "does this label clear the last one"
+                // test compares against whatever came next in the search
+                // results, which is distance order, and drops labels at
+                // random.
+                var ordered = view.markers.slice().sort(function (a, b) { return a.frequency - b.frequency; });
+                for (var mk of ordered) {
+                    if (mk.frequency < lo || mk.frequency > lo + span) continue;
+                    if (Math.abs(mk.frequency - f.freq) < 1) continue;   // the red line already says this one
+                    var mx = Math.round(view.hzToX(mk.frequency)) + .5;
+                    ctx.strokeStyle = Qt.alpha(view.theme.yellow, .55);
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(mx, 16); ctx.lineTo(mx, h); ctx.stroke();
+                    ctx.fillStyle = view.theme.yellow;
+                    ctx.fillRect(mx - 2.5, 16, 5, 3);
+                    var label = mk.name || "";
+                    var wide = ctx.measureText(label).width;
+                    if (label && mx - wide / 2 > lastLabelEnd + 6 && mx + wide / 2 < w) {
+                        ctx.globalAlpha = .85;
+                        ctx.fillText(label, mx - wide / 2, 29);
+                        ctx.globalAlpha = 1;
+                        lastLabelEnd = mx + wide / 2;
+                    }
+                }
+            }
             // Tuned frequency marker.
             var tx = Math.round(view.hzToX(f.freq)) + .5;
             ctx.strokeStyle = view.theme.red;
@@ -188,9 +253,13 @@ Item {
                 for (var x = 0; x <= w; x++) {
                     var v = -1;
                     if (x < w) {
-                        var b0 = Math.floor(x / w * n), b1 = Math.max(b0 + 1, Math.floor((x + 1) / w * n)), peak = -1e9;
+                        // Pixel column to frequency to bins, so the waterfall
+                        // shows the same window as the plot above it.
+                        var b0 = Math.max(0, Math.floor(view.binAt(view.xToHz(x))));
+                        var b1 = Math.max(b0 + 1, Math.ceil(view.binAt(view.xToHz(x + 1))));
+                        var peak = -1e9;
                         for (var b = b0; b < b1 && b < n; b++) if (f.bins[b] > peak) peak = f.bins[b];
-                        v = Math.max(0, Math.min(255, Math.round((peak - view.floorDb) / range * 255)));
+                        v = peak < -1e8 ? 0 : Math.max(0, Math.min(255, Math.round((peak - view.floorDb) / range * 255)));
                     }
                     if (v !== runV) {
                         if (runV >= 0) { ctx.fillStyle = lut[runV]; ctx.fillRect(runStart, y, x - runStart, 1); }

@@ -167,7 +167,7 @@ choose **WFM stereo**, press **PLAY**.
   The data comes from [OurAirports](https://ourairports.com/data/) (public
   domain) and [hearham.com](https://hearham.com/repeaters), downloaded the
   first time you search and cached under `~/.cache/omasdr`. After that it
-  works offline, and the ↻ button fetches it again. Places are resolved by
+  works offline, and the **REFRESH** button fetches it again. Places are resolved by
   [Nominatim](https://nominatim.openstreetmap.org/); a grid square or a
   coordinate pair never leaves your machine at all.
 - **Gain.** OmaSDR starts at a fixed 25.4 dB. The tuner's own automatic gain

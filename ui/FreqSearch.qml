@@ -169,8 +169,6 @@ Scope {
                     enabled: !find.busy && (placeField.text !== "" || !!find.saved)
                     onClicked: find.run(placeField.text)
                 }
-                // A word rather than a glyph: ↻ rendered as something closer
-                // to a hook in the theme's monospace face.
                 Control {
                     text: "RELOAD"
                     tip: "Download the airband and repeater data again,\nrather than using the cached copy"

@@ -161,8 +161,7 @@ watches it). Nothing is duplicated in QML.
 - **Results are listed in frequency order, not distance order.** The daemon
 still *picks* the nearest N of each kind — that is what makes it a nearby
 search — but a list of channels reads the way a band does, and the distance
-stays in its own column. The reload control is the word `RELOAD` rather than
-a ↻ glyph, which rendered closer to a hook in the theme's monospace face; it
+stays in its own column. The reload control is the word `RELOAD`; it
 carries a hover tooltip saying what it re-downloads.
 
 **Search keeps context.** A matching heading brings its whole section, a

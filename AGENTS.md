@@ -568,7 +568,22 @@ Open checks:
 - [ ] **Whether the spectrum needs a manual dB range or a "freeze range"
       toggle.** Auto-range follows the noise floor and the peaks, which is
       right on a busy band and may drift annoyingly on a quiet one. Decide
-      from use, not from theory. This is the last item before `v0.2.0`.
+      from use, not from theory. Still open; it did not block `v0.2.0` and
+      does not block `v0.3.0`.
+- [ ] **The re-centred spectrum, on real hardware.** The view is now a window
+      onto the frame centred on the tuned channel rather than the frame as
+      sent (see the decision above), and the nearby search paints markers over
+      it. Both were verified only against a stand-in frame source with peaks
+      on known frequencies — the tuned peak landed dead centre and each marker
+      sat on its peak — because no dongle was attached when it was written.
+      Confirm on the V4 against a real signal before tagging: the trace and
+      the waterfall should agree with each other and with the grid, and the
+      red marker should sit in the middle. This is the last item before
+      `v0.3.0`.
+- [ ] **The `RELOAD` tooltip in the search window.** It renders correctly when
+      forced visible, but `hyprctl dispatch movecursor` is a no-op on the
+      maintainer's machine, so a synthetic hover could never be driven to see
+      it appear on its own. Hover it once by hand.
 
 ## Distribution
 

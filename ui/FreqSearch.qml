@@ -142,6 +142,11 @@ Scope {
                 Layout.fillWidth: true
                 Layout.fillHeight: false
                 spacing: 8
+                // Above the rest of the column: the tooltips hang out of this
+                // row into the results box below, and that box has a
+                // half-transparent background painted after this row, which
+                // otherwise washes them out.
+                z: 10
                 Label { text: "FREQ SEARCH"; font.bold: true; font.letterSpacing: 1 }
                 TextField {
                     id: placeField

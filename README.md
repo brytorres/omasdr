@@ -217,6 +217,13 @@ silently fail to pass it through, with nothing in `lsusb` and nothing in
 
 **"Held by ..."** Another program has the dongle. The message names it.
 
+**I updated and nothing changed.** Run `omarchy restart shell`. The shell
+caches plugin components, so the bar widget and the windows keep running the
+code they started with until it restarts. If a version notice is still in the
+popover afterwards, it is the *daemon* that is stale, not the shell: press the
+**restart** button in that notice and play again. See
+[Updating](#updating).
+
 **It plays but sounds terrible.** Check the demodulator matches the signal:
 WFM stereo for broadcast FM, NFM for ham and public safety, AM for airband.
 Then try a gain step or two either way in the full window.

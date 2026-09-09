@@ -112,14 +112,17 @@ Item {
                 }
                 Rectangle { Layout.fillHeight: true; width: 1; color: Qt.alpha(app.theme.foreground, .17) }
                 ColumnLayout {
-                    // A fixed, comfortable width: these are labelled fields
-                    // that stop reading better past a point, and letting them
-                    // fill was what squeezed the presets.
-                    Layout.fillWidth: false
+                    // Capped, not fixed. These are labelled fields that stop
+                    // reading better past a point, so cap them and let the
+                    // slack go to the presets — but as a maximum on a filling
+                    // item, never a preferred width on a non-filling one:
+                    // Qt hands a non-filling item its preferred width and will
+                    // not take it back when space runs short, which made the
+                    // top band 793 px wide inside a 689 px window at half
+                    // screen and spilled the sliders past the right edge.
+                    Layout.fillWidth: true
                     Layout.preferredWidth: 440
-                    // Low enough that the 720 px minimum window still fits
-                    // this beside the tuner's own minimum.
-                    Layout.minimumWidth: 300
+                    Layout.maximumWidth: 440
                     Layout.alignment: Qt.AlignTop
                     spacing: 8
                     Caption { text: "RECEIVER" }

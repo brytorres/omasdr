@@ -128,7 +128,19 @@ that order suppressed labels at random rather than by position.
 
 **Expanded window layout (2026-09-08).** The top band, about a third of the
 height, holds the tuner card (presets beside it when the window is at
-least 1040 px wide, under it otherwise) and the receiver settings. The
+least 1040 px wide, under it otherwise) and the receiver settings.
+
+The band's width is split by giving the **tuner card** the slack and
+**capping the receiver column**: the settings are labelled fields that stop
+reading better past about 440 px, while the preset list turns every extra
+pixel into visible name. Cap it with `Layout.fillWidth: true` plus
+`Layout.maximumWidth`, never with `fillWidth: false` plus a
+`preferredWidth` — Qt hands a non-filling item its preferred width and will
+not take it back when space runs short, so at half screen the band measured
+793 px inside a 689 px window and the sliders, the recordings field and the
+"stop daemon" button all spilled past the right edge. Measured, not guessed:
+instrument the layout with a timer printing `width` and `implicitWidth` if
+this ever looks wrong again. The
 spectrum plot and waterfall span the full width below in a padded box;
 the plot takes 30 % of that box. Nested Qt layouts fill by default, so
 the band and caption rows set `Layout.fillHeight: false` explicitly. Python GNU Radio blocks (the FFT tap,

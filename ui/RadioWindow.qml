@@ -204,13 +204,6 @@ Item {
                             Caption { Layout.preferredWidth: 52; text: app.state ? Math.round(app.state.volume * 100) + "%" : "" }
                         }
 
-                        Label { text: "Recordings" }
-                        Field {
-                            id: recDir
-                            Layout.fillWidth: true
-                            text: app.state && app.state.record_dir ? app.state.record_dir : ""
-                            onEditingFinished: if (app.state && text !== app.state.record_dir) app.engine.send({type: "set_record_dir", record_dir: text})
-                        }
                     }
                 }
             }

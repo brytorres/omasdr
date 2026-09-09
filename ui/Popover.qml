@@ -312,6 +312,37 @@ FocusScope {
             }
         }
 
+        // Where recordings land, under the transport that makes them. Not in
+        // the bar popover: that is the essential controls, and this is a path
+        // you set once.
+        RowLayout {
+            Layout.fillWidth: true
+            visible: !card.compact
+            spacing: 6
+            Label {
+                text: "Recordings"
+                opacity: .55
+                font.pixelSize: card.theme.baseSize - 2
+            }
+            TextField {
+                id: recDirField
+                Layout.fillWidth: true
+                implicitHeight: 26
+                font.family: card.theme.font
+                font.pixelSize: card.theme.baseSize
+                color: card.theme.foreground
+                selectionColor: card.theme.accent
+                selectedTextColor: card.theme.background
+                text: card.state && card.state.record_dir ? card.state.record_dir : ""
+                onEditingFinished: if (card.state && text !== card.state.record_dir) card.engine.send({type: "set_record_dir", record_dir: text})
+                background: Rectangle {
+                    color: Qt.alpha(card.theme.background, .5)
+                    border.width: 1
+                    border.color: recDirField.activeFocus ? card.theme.accent : Qt.alpha(card.theme.foreground, .22)
+                }
+            }
+        }
+
         // Presets, unless they live beside the controls.
         Loader { Layout.fillWidth: true; active: !card.presetsBeside; visible: active; sourceComponent: presetsBlock }
 

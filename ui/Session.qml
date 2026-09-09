@@ -10,6 +10,26 @@ QtObject {
     property Engine engine: Engine { eager: session.wanted }
     property Theme theme: Theme {}
     property bool windowOpen: false
+    // The frequency reference window. Either surface can open it and there is
+    // only ever one, so it hangs off the singleton rather than off whichever
+    // card happened to ask for it. Loaded on first use, then kept.
+    property bool helpOpen: false
+    function toggleHelp() { helpOpen = !helpOpen; }
+    property LazyLoader help: LazyLoader {
+        loading: session.helpOpen
+        // No session: assignment here — inside this component `session` would
+        // resolve to FreqHelp's own property, not this singleton. It defaults
+        // to the Session singleton anyway.
+        FreqHelp { }
+    }
+    // The nearby search, on the same terms: one window, either surface opens
+    // it, loaded the first time it is wanted.
+    property bool searchOpen: false
+    function toggleSearch() { searchOpen = !searchOpen; }
+    property LazyLoader search: LazyLoader {
+        loading: session.searchOpen
+        FreqSearch { }
+    }
     // Surfaces that need a live daemon (an open popover or window) count
     // themselves here; only then is a missing daemon restarted. The bar icon
     // alone must not keep it alive (AGENTS.md: on demand).

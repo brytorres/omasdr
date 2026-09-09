@@ -21,6 +21,20 @@ QtObject {
     property string rejection: ""
     property bool incompatible: false
     signal imported(int added, int skipped)
+    /// The nearby search (docs/protocol.md): "", "searching", "ok", "error".
+    /// It answers twice, so the status is what the window watches, not a reply.
+    property string nearbyStatus: ""
+    property string nearbyError: ""
+    property var nearbyLocation: null
+    property var nearbyResults: []
+    property var nearbySources: []
+    property var nearbyNotes: []
+    property string nearbyHint: ""
+    function searchNearby(args) {
+        nearbyStatus = "searching";
+        nearbyError = "";
+        send(Object.assign({type: "search_nearby"}, args || {}));
+    }
     readonly property string runtime: (Quickshell.env("OMASDR_RUNTIME_DIR") || (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/omasdr") + "/"
     readonly property bool connected: socket && socket.connected
     function demod(id) {
@@ -49,7 +63,23 @@ QtObject {
                 if (!message.playing) level = -150;
             } else if (message.type === "presets") presets = message.presets;
             else if (message.type === "level") level = message.db;
-            else if (message.type === "error") rejection = message.message;
+            else if (message.type === "nearby") {
+                nearbyStatus = message.status;
+                if (message.status === "ok") {
+                    nearbyLocation = message.location || null;
+                    nearbyResults = message.results || [];
+                    nearbySources = message.sources || [];
+                    nearbyNotes = message.notes || [];
+                    nearbyHint = message.hint || "";
+                    nearbyError = "";
+                } else if (message.status === "error") nearbyError = message.message || "Search failed";
+            }
+            else if (message.type === "error") {
+                rejection = message.message;
+                // A refusal arrives instead of the "searching" acknowledgement,
+                // so a search waiting on one has to be told it lost.
+                if (nearbyStatus === "searching") { nearbyStatus = "error"; nearbyError = message.message; }
+            }
             else if (message.type === "imported") imported(message.added, message.skipped);
         } catch (e) { state = null; error = "Invalid daemon message: " + e; }
     }

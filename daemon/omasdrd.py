@@ -26,6 +26,14 @@ import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
 
+# The nearby search is additive to a radio, so it must never be the reason
+# the radio does not start: a half-updated plugin folder degrades to "no
+# search" rather than "no daemon".
+try:
+    import nearby
+except Exception:                                       # noqa: BLE001
+    nearby = None
+
 PROTOCOL_VERSION = 1
 PLUGIN_ID = "com.omasdr.radio"
 
@@ -43,6 +51,8 @@ def _version() -> str:
 
 
 VERSION = _version()
+if nearby is not None:
+    nearby.set_version(VERSION)
 
 # OMASDR_RUNTIME_DIR lets a check run a scratch daemon without moving
 # XDG_RUNTIME_DIR, which PipeWire's ALSA plugin also needs to find its server.
@@ -102,6 +112,8 @@ DEFAULT_SETTINGS = {
     "device": "",            # osmosdr device string; "" means first found
     "step_override": 0,      # 0 means follow demod
     "record_dir": str(Path.home() / "Audio" / "OmaSDR"),
+    # Where the user is, for the nearby search. Asked once, never guessed.
+    "location": {},          # {"name", "latitude", "longitude", "source"}
 }
 
 
@@ -615,6 +627,7 @@ class Daemon:
             "recording_started": self.receiver.recording_started if self.receiver.recording else 0,
             "record_dir": self.settings["record_dir"],
             "device": self.device_json(),
+            "location": self.settings.get("location") or {},
             "error": self.receiver.error,
         }
 
@@ -739,6 +752,8 @@ class Daemon:
                     return self.play()
                 self.refresh_device()
                 return self.persist_and_broadcast()
+            if t == "search_nearby":
+                return self.search_nearby(msg, sender)
             if t == "list_devices":
                 return {"v": PROTOCOL_VERSION, "type": "devices",
                         "devices": [vars(d) for d in enumerate_devices()]}
@@ -780,6 +795,68 @@ class Daemon:
             return self.broadcast_state()
         self.refresh_device()
         return self.persist_and_broadcast()
+
+    # -- nearby search -------------------------------------------------------
+    def search_nearby(self, msg: dict, sender: socket.socket | None) -> dict:
+        """Answer at once and do the work on a thread.
+
+        handle() holds the daemon lock for the whole command, and this one
+        geocodes and may download 14 MB, so doing it inline would freeze every
+        client and the receiver with it. The reply says "searching"; the
+        result arrives later as a second `nearby` message to this client
+        alone."""
+        if nearby is None:
+            return self.error("Nearby search unavailable: daemon/nearby.py is missing")
+        place = str(msg.get("place") or "").strip()
+        saved = self.settings.get("location") or {}
+        if not place and msg.get("latitude") is None and not saved:
+            return self.error("No location yet: type a place, a grid square, or coordinates")
+        threading.Thread(target=self._nearby_worker, args=(msg, sender), daemon=True).start()
+        return {"v": PROTOCOL_VERSION, "type": "nearby", "status": "searching"}
+
+    def _nearby_worker(self, msg: dict, sender: socket.socket | None):
+        try:
+            place = str(msg.get("place") or "").strip()
+            if place:
+                location = nearby.geocode(place)
+            elif msg.get("latitude") is not None:
+                location = {"name": str(msg.get("name") or ""), "latitude": float(msg["latitude"]),
+                            "longitude": float(msg["longitude"]), "source": "given"}
+            else:
+                location = dict(self.settings.get("location") or {})
+            found = nearby.search(float(location["latitude"]), float(location["longitude"]),
+                                  kinds=tuple(msg.get("kinds") or nearby.KINDS),
+                                  limit=int(msg.get("limit") or 12),
+                                  radius_km=float(msg.get("radius_km") or 80.0),
+                                  refresh=bool(msg.get("refresh")))
+            reply = {"v": PROTOCOL_VERSION, "type": "nearby", "status": "ok",
+                     "location": location, **found}
+            with self.lock:
+                # Remember where they are, so the next search never geocodes.
+                self.settings["location"] = location
+                save_json(SETTINGS_PATH, self.settings)
+                self.last_activity = time.monotonic()
+                # sender is whatever the last command set; clear it so the
+                # state carrying the new location reaches every client.
+                self.sender = None
+                self.broadcast_state()
+        except Exception as exc:                                # noqa: BLE001
+            log("nearby failed:", traceback.format_exc())
+            reply = {"v": PROTOCOL_VERSION, "type": "nearby", "status": "error",
+                     "message": short_error(exc)}
+            with self.lock:
+                self.last_activity = time.monotonic()
+        self.send_to(sender, reply)
+
+    def send_to(self, conn: socket.socket | None, msg: dict):
+        """One message to one client, dropping it if that client has gone."""
+        if conn is None:
+            return
+        try:
+            conn.sendall((json.dumps(msg) + "\n").encode())
+        except OSError:
+            with self.lock:
+                self.clients.discard(conn)
 
     def save_preset(self, msg: dict) -> dict:
         hz = int(msg.get("frequency") or self.settings["frequency"])

@@ -227,6 +227,10 @@ Item {
                     stream: fft
                     theme: app.theme
                     bandplan: app.engine.bandplan
+                    // Nearby channels over the live spectrum, but only while
+                    // the search window is up: they are a temporary overlay
+                    // for reading the band, not part of the receiver.
+                    markers: app.session.searchOpen ? app.engine.nearbyResults : []
                     step: app.state ? app.state.step : 100000
                     plotHeight: Math.max(90, Math.round(height * 0.3))
                     onTuneRequested: hz => app.engine.send({type: "set_frequency", frequency: hz})
@@ -240,6 +244,31 @@ Item {
                 Caption {
                     Layout.fillWidth: true
                     text: (app.engine.daemonVersion ? "daemon " + app.engine.daemonVersion + " · " : "") + (app.state ? Freq.label(app.state.frequency) + " · " + app.state.demod.toUpperCase() : "offline")
+                }
+                // The daemon's own controls, together: whether it stays
+                // resident and the switch that stops it now.
+                CheckBox {
+                    id: keep
+                    text: "keep daemon running"
+                    enabled: !!app.state
+                    checked: app.state ? app.state.keep_running : false
+                    onToggled: app.engine.send({type: "set_keep_running", enabled: checked})
+                    font.family: app.theme.font
+                    font.pixelSize: app.theme.baseSize - 1
+                    contentItem: Label {
+                        text: keep.text
+                        leftPadding: keep.indicator.width + 6
+                        verticalAlignment: Text.AlignVCenter
+                        opacity: keep.enabled ? .8 : .35
+                        font.pixelSize: app.theme.baseSize - 1
+                    }
+                    indicator: Rectangle {
+                        implicitWidth: 14; implicitHeight: 14
+                        y: parent.height / 2 - height / 2
+                        color: keep.checked ? app.theme.accent : "transparent"
+                        border.width: 1
+                        border.color: keep.checked ? app.theme.accent : Qt.alpha(app.theme.foreground, .4)
+                    }
                 }
                 Button {
                     id: stopButton

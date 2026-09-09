@@ -218,9 +218,13 @@ FocusScope {
             }
         }
 
-        // Signal level in the tuned channel while playing.
+        // Signal level in the tuned channel while playing. The dB reading sits
+        // above the bar, in the layout's own spacing, so the row needs a
+        // little more of a gap than the spacing alone: without it the reading
+        // rides up against the frequency field and its unit button.
         Item {
             Layout.fillWidth: true
+            Layout.topMargin: 8
             implicitHeight: 6
             visible: card.playing
             Rectangle { anchors.fill: parent; color: Qt.alpha(card.theme.foreground, .12) }

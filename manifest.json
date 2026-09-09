@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "com.omasdr.radio",
   "name": "OmaSDR",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "Bry Torres",
   "license": "MIT",
   "homepage": "https://github.com/brytorres/omasdr",
@@ -17,7 +17,7 @@
   },
   "barWidget": {
     "displayName": "OmaSDR",
-    "description": "Tune your RTL-SDR: frequency, demod, presets, and expand",
+    "description": "Tune your SDR device: frequency, demod, presets, and expand",
     "category": "Media",
     "allowMultiple": false,
     "defaultSection": "right"

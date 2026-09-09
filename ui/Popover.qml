@@ -121,6 +121,10 @@ FocusScope {
     ColumnLayout {
         id: layout
         Layout.fillWidth: true
+        // With the presets beside it this column stays at its natural 320 so
+        // any extra width reaches the preset list, which is the part that
+        // benefits from it. On its own it fills as before.
+        Layout.maximumWidth: card.presetsBeside ? 320 : Number.POSITIVE_INFINITY
         Layout.alignment: Qt.AlignTop
         spacing: 10
 
@@ -326,7 +330,21 @@ FocusScope {
 
     }
 
-    Loader { Layout.preferredWidth: 260; Layout.alignment: Qt.AlignTop; active: card.presetsBeside; visible: active; sourceComponent: presetsBlock }
+    // Grows into whatever the window gives the card. Preset rows are fixed
+    // lanes with the name taking the slack, so more width is more name. The
+    // cap is high enough that a maximised window on a normal display has no
+    // slack left over — a lower one left a dead gap between the list and the
+    // receiver column — and low enough that an ultrawide does not get a
+    // single absurd line.
+    Loader {
+        Layout.fillWidth: true
+        Layout.minimumWidth: 260
+        Layout.maximumWidth: 720
+        Layout.alignment: Qt.AlignTop
+        active: card.presetsBeside
+        visible: active
+        sourceComponent: presetsBlock
+    }
     }
 
     Component {

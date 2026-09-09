@@ -100,7 +100,11 @@ Item {
                     id: tuner
                     focus: true
                     Layout.alignment: Qt.AlignTop
-                    Layout.preferredWidth: implicitWidth
+                    // Takes the slack instead of the receiver column, so a
+                    // wide window widens the preset list rather than
+                    // stretching settings that were already comfortable.
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: implicitWidth
                     session: app.session
                     compact: false
                     presetsBeside: win.width >= 1040
@@ -108,13 +112,20 @@ Item {
                 }
                 Rectangle { Layout.fillHeight: true; width: 1; color: Qt.alpha(app.theme.foreground, .17) }
                 ColumnLayout {
-                    Layout.fillWidth: true
+                    // A fixed, comfortable width: these are labelled fields
+                    // that stop reading better past a point, and letting them
+                    // fill was what squeezed the presets.
+                    Layout.fillWidth: false
+                    Layout.preferredWidth: 440
+                    // Low enough that the 720 px minimum window still fits
+                    // this beside the tuner's own minimum.
+                    Layout.minimumWidth: 300
                     Layout.alignment: Qt.AlignTop
                     spacing: 8
                     Caption { text: "RECEIVER" }
                     GridLayout {
                         Layout.fillWidth: true
-                        columns: win.width >= 1040 ? 2 : 2
+                        columns: 2
                         columnSpacing: 12
                         rowSpacing: 8
 
